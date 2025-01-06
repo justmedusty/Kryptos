@@ -6,7 +6,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 mod server_listener;
-static port: u64 = 6969;
+static PORT: u64 = 6969;
 
 fn spawn_server_thread(connection: Arc<Mutex<ServerConnection>>) {
     let thread = std::thread::spawn(move || {
@@ -28,13 +28,13 @@ fn spawn_server_thread(connection: Arc<Mutex<ServerConnection>>) {
 fn spawn_connect_thread() {
     let thread = std::thread::spawn(move || loop {
         sleep(Duration::from_secs(3));
-        let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
-        tcp_stream.write(&Vec::from(String::from("CLIENT SAYS HELLO").as_bytes()));
+        let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
+        tcp_stream.write(&Vec::from(String::from("CLIENT SAYS HELLO").as_bytes())).expect("Could not write to tcp output stream");
         tcp_stream.flush().unwrap();
     });
 }
 fn main() {
-    let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
+    let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(Mutex::new(server_listener));
 
     loop {

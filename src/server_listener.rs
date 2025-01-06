@@ -30,54 +30,53 @@ pub trait Listen {
 
 fn print_vec(bytes: &Vec<u8>) {
     for b in bytes {
-        if (*b == b'\0') {
+        if *b == b'\0' {
             return;
         }
         print!("{}", *b as char);
     }
 }
+
 impl Listen for ServerConnection {
     fn read(&mut self) -> usize {
-        return self
-            .tcp_stream
+        self.tcp_stream
             .read(&mut self.read_buffer)
-            .expect("Failed to read data from server connection");
+            .expect("Failed to read data from server connection")
     }
 
     fn close(&mut self) {
         self.tcp_stream
             .shutdown(Shutdown::Both)
-            .expect("Failed to close server connection");
+            .expect("Failed to close server connection")
     }
 
     fn send(&mut self) -> usize {
-        return self
-            .tcp_stream
+        self.tcp_stream
             .write(&self.write_buffer)
-            .expect("Failed to write to server connection");
-    }
-
-    fn fill_read_buffer(&mut self, bytes: &Vec<u8>) {
-        self.read_buffer.write_all(bytes).unwrap();
+            .expect("Failed to write to server connection")
     }
 
     fn fill_write_buffer(&mut self, bytes: &Vec<u8>) {
         self.write_buffer.write_all(bytes).unwrap();
     }
 
+    fn fill_read_buffer(&mut self, bytes: &Vec<u8>) {
+        self.read_buffer.write_all(bytes).unwrap_or_default();
+    }
+
     fn get_addr(&self) -> SocketAddr {
-        return self.socket_addr;
+        self.socket_addr
     }
 
     fn print_buffer(&mut self) {
         print_vec(&self.read_buffer);
-        println!("");
+        println!();
     }
 }
 
 pub fn open_connection(listener: Arc<Mutex<TcpListener>>) -> ServerConnection {
     let listener = listener.lock().unwrap();
-    let (tcp_conn, sock_addr) = listener.accept().unwrap();
+    let (tcp_conn, sock_addr) = listener.accept().expect("Failed to accept connection");
     let connection = CONN_ID.fetch_add(1, SeqCst);
     let read_buff = vec![0u8; 4096];
     let write_buff = vec![0u8; 4096];
