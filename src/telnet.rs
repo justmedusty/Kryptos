@@ -1,4 +1,5 @@
 use crate::server_listener::print_vec;
+use std::fs::File;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream};
 
@@ -7,7 +8,8 @@ pub struct TelnetServerConnection {
     stream: TcpStream,
     read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
-    log : bool
+    log: bool,
+    log_file: File,
 }
 
 pub trait ServerFunctions {
@@ -24,11 +26,22 @@ pub trait ServerFunctions {
     fn read_and_print(&mut self);
 
     fn set_logging(&mut self) -> bool;
+
+    fn set_log_file(&mut self, log_file: String) -> u64;
 }
 
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
-        self.stream.read(&mut self.read_buffer).unwrap()
+        let ret = self
+            .stream
+            .read(&mut self.read_buffer)
+            .unwrap()
+            .max(self.read_buffer.len());
+        if (self.log) {
+            File::write(&mut self.log_file, &self.read_buffer)
+                .expect("Could not write to log file!");
+        }
+        ret
     }
 
     fn write_to_connection(&mut self) -> usize {
@@ -76,5 +89,17 @@ impl ServerFunctions for TelnetServerConnection {
     fn set_logging(&mut self) -> bool {
         self.log = !self.log;
         self.log
+    }
+
+    fn set_log_file(&mut self, log_file: String) -> u64 {
+        let mut file = File::create(&log_file);
+        if (file.is_ok()) {
+            self.log = true;
+            self.log_file = file.unwrap();
+            0
+        } else {
+            println!("Log file {} could not be opened", log_file);
+            1
+        }
     }
 }

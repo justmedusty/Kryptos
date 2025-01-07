@@ -14,14 +14,13 @@ fn spawn_server_thread(connection: Arc<Mutex<ServerConnection>>) {
     let thread = std::thread::spawn(move || {
         let mut curr = connection.lock().unwrap();
         loop {
-            sleep(Duration::new(1, 0));
+            sleep(Duration::new(2, 0));
 
             let hello_msg = String::from("hello world");
             curr.fill_write_buffer(&Vec::from(hello_msg.as_bytes()));
             curr.send();
             curr.read();
             curr.print_buffer();
-            break;
         }
     });
 }
@@ -29,7 +28,7 @@ fn spawn_server_thread(connection: Arc<Mutex<ServerConnection>>) {
 
 fn spawn_connect_thread() {
     let thread = std::thread::spawn(move || loop {
-        sleep(Duration::from_secs(3));
+        sleep(Duration::from_secs(4));
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
         tcp_stream.write(&Vec::from(String::from("CLIENT SAYS HELLO").as_bytes())).expect("Could not write to tcp output stream");
         tcp_stream.flush().unwrap();
