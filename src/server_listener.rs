@@ -7,14 +7,14 @@ use std::sync::{Arc, Mutex};
 static CONN_ID: AtomicU64 = AtomicU64::new(0);
 pub struct ServerConnection {
     tcp_stream: TcpStream,
-    socket_addr: SocketAddr,
-    conn_id: u64,
+    pub socket_addr: SocketAddr,
+    pub conn_id: u64,
     read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
     is_in_use: AtomicBool,
 }
 
-pub trait Listen {
+pub trait Server {
     fn read(&mut self) -> usize;
     fn close(&mut self);
     fn send(&mut self) -> usize;
@@ -28,7 +28,7 @@ pub trait Listen {
     fn print_buffer(&mut self);
 }
 
-fn print_vec(bytes: &Vec<u8>) {
+pub fn print_vec(bytes: &Vec<u8>) {
     for b in bytes {
         if *b == b'\0' {
             return;
@@ -37,7 +37,7 @@ fn print_vec(bytes: &Vec<u8>) {
     }
 }
 
-impl Listen for ServerConnection {
+impl Server for ServerConnection {
     fn read(&mut self) -> usize {
         self.tcp_stream
             .read(&mut self.read_buffer)

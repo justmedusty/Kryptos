@@ -1,4 +1,4 @@
-use crate::server_listener::{open_connection, Listen, ServerConnection};
+use crate::server_listener::{open_connection, Server, ServerConnection};
 use std::io::Write;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -6,6 +6,8 @@ use std::thread::sleep;
 use std::time::Duration;
 
 mod server_listener;
+mod telnet;
+
 static PORT: u64 = 6969;
 
 fn spawn_server_thread(connection: Arc<Mutex<ServerConnection>>) {
