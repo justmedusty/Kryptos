@@ -12,6 +12,15 @@ static PORT: u64 = 6969;
 
 type ConnectionPool = LinkedList<Arc<Mutex<TelnetServerConnection>>>;
 
+fn broadcast_message(message: String, pool : &ConnectionPool){
+    let message_as_vec = message.as_bytes().to_vec();
+    for item in pool{
+        let mut connection = item.lock().unwrap();
+        connection.fill_write_buffer(message_as_vec.clone());
+        connection.write_to_connection();
+    }
+}
+
 fn spawn_server_thread(connection: Arc<Mutex<TelnetServerConnection>>) {
     std::thread::spawn(move || {
         let mut curr = connection.lock().unwrap();
@@ -31,6 +40,8 @@ fn spawn_connect_thread() {
         sleep(Duration::from_secs(5));
     });
 }
+
+
 fn main() {
     let mut connection_id = 0;
     let mut conn_pool = ConnectionPool::new();
@@ -58,6 +69,6 @@ fn main() {
         // Spawn a new thread to handle the connection
         spawn_server_thread(passed_ref);
 
-        sleep(Duration::new(10, 0));
+        sleep(Duration::new(2, 0));
     }
 }
