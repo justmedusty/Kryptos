@@ -1,10 +1,7 @@
 use std::fs::File;
-use std::io::{Bytes, Read, Write};
+use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
-use std::ops::Add;
-use std::sync::atomic::Ordering::SeqCst;
-use std::sync::atomic::{AtomicBool, AtomicU64};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub struct TelnetServerConnection {
@@ -25,7 +22,7 @@ impl PartialEq<Self> for TelnetServerConnection {
 
 pub fn print_vec(buffer: &Vec<u8>) {
     for byte in buffer {
-        if (*byte != b'\0') {
+        if *byte != b'\0' {
             print!("{}", *byte as char);
         } else {
             return;
@@ -59,8 +56,8 @@ impl ServerFunctions for TelnetServerConnection {
             .read(&mut self.read_buffer)
             .unwrap()
             .max(self.read_buffer.len());
-        if (self.log && self.log_file.is_some()) {
-            let mut file = self.log_file.as_ref().unwrap();
+        if self.log && self.log_file.is_some() {
+            let file = self.log_file.as_ref().unwrap();
             let mut reference = Arc::new(Mutex::new(file));
             let mut file = reference.lock().unwrap();
             file.write(&self.read_buffer).expect("Could not write to log file!");
@@ -116,7 +113,7 @@ impl ServerFunctions for TelnetServerConnection {
 
     fn set_log_file(&mut self, log_file: String) -> u64 {
         let mut file = File::create(&log_file);
-        if (file.is_ok()) {
+        if file.is_ok() {
             self.log = true;
             self.log_file = Option::from(file.unwrap());
             0

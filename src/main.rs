@@ -1,8 +1,8 @@
 use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection};
 use std::collections::LinkedList;
-use std::io::{stdout, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::io::Write;
+use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -13,7 +13,7 @@ static PORT: u64 = 6969;
 type ConnectionPool = LinkedList<Arc<Mutex<TelnetServerConnection>>>;
 
 fn spawn_server_thread(connection: Arc<Mutex<TelnetServerConnection>>) {
-    let thread = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         let mut curr = connection.lock().unwrap();
         sleep(Duration::new(5, 0));
         curr.read_and_print();
@@ -21,7 +21,7 @@ fn spawn_server_thread(connection: Arc<Mutex<TelnetServerConnection>>) {
 }
 
 fn spawn_connect_thread() {
-    let thread = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         println!("Starting client thread");
 
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
