@@ -1,7 +1,8 @@
 use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection};
 use std::collections::LinkedList;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -46,10 +47,12 @@ fn spawn_connect_thread() {
         println!("Starting client thread");
 
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
+        let mut buf   = Box::new([0; 4096]);
         tcp_stream
             .write(&Vec::from(String::from("CLIENT SAYS HELLO\n").as_bytes()))
             .expect("Could not write to tcp output stream");
-        sleep(Duration::from_secs(5));
+        sleep(Duration::from_secs(2));
+        tcp_stream.read(buf.deref_mut()).unwrap();
     });
 }
 
@@ -64,8 +67,6 @@ fn main() {
         let mut pool = cloned_reference.lock().unwrap();
         sleep(Duration::from_secs(2));
         let curr = Arc::clone(&reference);
-        println!("Trying connection...");
-
         // Accept the connection and handle it if successful
         spawn_connect_thread();
         let mut server_connection = open_telnet_connection(curr, connection_id);
