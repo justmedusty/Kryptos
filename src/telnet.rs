@@ -1,4 +1,3 @@
-
 use std::fs::File;
 use std::io::{Bytes, Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
@@ -106,10 +105,8 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn read_and_print(&mut self) {
-        while (self.read_from_connection() != 0) {
-            print_vec(&self.read_buffer);
-        }
-
+        self.read_from_connection();
+        print_vec(&self.read_buffer);
     }
 
     fn set_logging(&mut self) -> bool {
