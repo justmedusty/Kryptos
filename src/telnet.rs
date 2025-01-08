@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct TelnetServerConnection {
     socket_addr: SocketAddr,
-    connection_id: u64,
+    pub connection_id: u64,
     stream: TcpStream,
     pub read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
@@ -51,22 +51,28 @@ pub trait ServerFunctions {
 
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
-        let ret = self
+        let ret = match self
             .stream
-            .read(&mut self.read_buffer)
-            .unwrap()
-            .max(self.read_buffer.len());
+            .read(&mut self.read_buffer) {
+            Ok(x) => x,
+            Err(_) => return 0
+        };
+
         if self.log && self.log_file.is_some() {
             let file = self.log_file.as_ref().unwrap();
             let mut reference = Arc::new(Mutex::new(file));
             let mut file = reference.lock().unwrap();
-            file.write(&self.read_buffer).expect("Could not write to log file!");
+            file.write(&self.read_buffer)
+                .expect("Could not write to log file!");
         }
+
         ret
     }
 
     fn write_to_connection(&mut self) -> usize {
-        self.stream.write(&self.write_buffer).unwrap()
+        self.stream
+            .write(&self.write_buffer)
+            .expect("Could not write to connection")
     }
 
     fn fetch_address(&mut self) -> SocketAddr {
