@@ -8,7 +8,7 @@ pub struct TelnetServerConnection {
     socket_addr: SocketAddr,
     connection_id: u64,
     stream: TcpStream,
-    read_buffer: Vec<u8>,
+    pub read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
     log: bool,
     log_file: Option<File>,

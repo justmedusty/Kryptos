@@ -10,22 +10,34 @@ mod telnet;
 
 static PORT: u64 = 6969;
 
-type ConnectionPool = LinkedList<Arc<Mutex<TelnetServerConnection>>>;
+type ConnectionPool = Arc<Mutex<LinkedList<Arc<Mutex<TelnetServerConnection>>>>>;
+type Connection = Arc<Mutex<TelnetServerConnection>>;
 
-fn broadcast_message(message: String, pool : &ConnectionPool){
-    let message_as_vec = message.as_bytes().to_vec();
-    for item in pool{
-        let mut connection = item.lock().unwrap();
-        connection.fill_write_buffer(message_as_vec.clone());
+fn broadcast_message(message: &Vec<u8>, source: &Connection, pool: &ConnectionPool) {
+    let pool_ref = pool.lock().unwrap();
+    for connection in pool_ref.iter() {
+        /*
+        if connection.as_ref() == source.as_ref() {
+            continue;
+        }
+        */
+
+        let mut connection = connection.lock().unwrap();
+        connection.fill_write_buffer(message.clone());
         connection.write_to_connection();
     }
 }
 
-fn spawn_server_thread(connection: Arc<Mutex<TelnetServerConnection>>) {
-    std::thread::spawn(move || {
+fn spawn_server_thread(
+    connection: Connection,
+    pool: ConnectionPool,
+) {
+    std::thread::spawn(move || loop {
         let mut curr = connection.lock().unwrap();
-        sleep(Duration::new(5, 0));
-        curr.read_and_print();
+        if curr.read_from_connection() != 0 {
+            curr.read_and_print();
+            broadcast_message(&curr.read_buffer.clone(), &connection, &pool);
+        }
     });
 }
 
@@ -41,14 +53,15 @@ fn spawn_connect_thread() {
     });
 }
 
-
 fn main() {
     let mut connection_id = 0;
-    let mut conn_pool = ConnectionPool::new();
+    let mut conn_pool = ConnectionPool::new(Mutex::new(Default::default()));
     let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(Mutex::new(server_listener));
+    let cloned_reference = conn_pool.clone();
 
     loop {
+        let mut pool = cloned_reference.lock().unwrap();
         sleep(Duration::from_secs(2));
         let curr = Arc::clone(&reference);
         println!("Trying connection...");
@@ -61,13 +74,14 @@ fn main() {
             server_connection.get_address()
         );
         let reference = Arc::new(Mutex::new(server_connection));
-        let open_ref = Arc::clone(&reference);
-        conn_pool.push_front(open_ref);
+        let unwrapped = Arc::clone(&reference);
+
+        pool.push_front(unwrapped);
         connection_id += 1;
 
         let passed_ref = Arc::clone(&reference);
         // Spawn a new thread to handle the connection
-        spawn_server_thread(passed_ref);
+        spawn_server_thread(passed_ref, cloned_reference.clone());
 
         sleep(Duration::new(2, 0));
     }
