@@ -2,7 +2,7 @@ use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnect
 use std::collections::LinkedList;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -14,12 +14,14 @@ static PORT: u64 = 6969;
 type ConnectionPool = Arc<Mutex<LinkedList<Arc<Mutex<TelnetServerConnection>>>>>;
 type Connection = Arc<Mutex<TelnetServerConnection>>;
 
-fn broadcast_message(message: &Vec<u8>, source: &Connection, pool: &ConnectionPool) {
-    let pool_ref = match pool.lock() {
-        Ok(x) => x,
-        Err(_) => return,
+async fn broadcast_message(message: &Vec<u8>, source: Connection, pool: &ConnectionPool) {
+    let pool_ref = if let Ok(x) = pool.lock() {
+        x
+    } else if let Err(_poisoned) = pool.lock() {
+        panic!("lock is poisoned")
+    } else {
+        unreachable!()
     };
-    println!("HERE");
     for connection in pool_ref.iter() {
         if connection.lock().unwrap().connection_id
             == match source.lock() {
@@ -36,22 +38,22 @@ fn broadcast_message(message: &Vec<u8>, source: &Connection, pool: &ConnectionPo
         };
         connection.fill_write_buffer(message.clone());
         connection.write_to_connection();
+        println!("{}", "HERE");
     }
 }
 
 fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move   ||{
+        let mut conn = connection.lock().unwrap();
+
         loop {
-            println!("ID :{}", connection.lock().unwrap().connection_id);
-            let mut curr = match connection.lock() {
-                Ok(x) => x,
-                Err(_) => break,
-            };
-            let val = curr.read_from_connection();
+            println!("Entering thread {}",conn.connection_id);
+
+            let val = conn.read_from_connection();
             if val > 0 {
-                broadcast_message(&curr.read_buffer.clone(), &connection, &pool);
+                println!("Got message on connection {} of size {}", conn.connection_id,val);
+                let _ = broadcast_message(&conn.read_buffer, connection.clone(), &pool.clone());
             }
-            drop(curr);
         }
     });
 }
@@ -71,6 +73,7 @@ fn spawn_connect_thread() {
                 Ok(x) => x,
                 Err(_) => break,
             };
+
             println!(
                 "Received a message from the client {}",
                 String::from_utf8(buf.to_vec()).unwrap()
@@ -81,13 +84,13 @@ fn spawn_connect_thread() {
 
 fn main() {
     let mut connection_id = 0;
-    let mut conn_pool = ConnectionPool::new(Mutex::new(Default::default()));
+    let conn_pool = ConnectionPool::new(Mutex::new(Default::default()));
     let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(Mutex::new(server_listener));
-    let cloned_reference = conn_pool.clone();
+    let pool_reference = conn_pool.clone();
 
     loop {
-        let mut pool = match cloned_reference.lock() {
+        let mut pool = match pool_reference.lock() {
             Ok(x) => x,
             Err(_) => panic!("Main thread could not lock mutex"),
         };
@@ -106,9 +109,8 @@ fn main() {
         pool.push_front(unwrapped);
         connection_id += 1;
 
-        let passed_ref = Arc::clone(&reference);
         // Spawn a new thread to handle the connection
-        spawn_server_thread(passed_ref, cloned_reference.clone());
+        spawn_server_thread(reference.clone(), pool_reference.clone());
 
         sleep(Duration::new(2, 0));
     }

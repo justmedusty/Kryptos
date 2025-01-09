@@ -51,16 +51,14 @@ pub trait ServerFunctions {
 
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
-        let ret = match self
-            .stream
-            .read(&mut self.read_buffer) {
+        let ret = match self.stream.read(&mut self.read_buffer) {
             Ok(x) => x,
-            Err(_) => return 0
+            Err(_) => return 0,
         };
 
         if self.log && self.log_file.is_some() {
             let file = self.log_file.as_ref().unwrap();
-            let mut reference = Arc::new(Mutex::new(file));
+            let reference = Arc::new(Mutex::new(file));
             let mut file = reference.lock().unwrap();
             file.write(&self.read_buffer)
                 .expect("Could not write to log file!");
@@ -118,7 +116,7 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn set_log_file(&mut self, log_file: String) -> u64 {
-        let mut file = File::create(&log_file);
+        let file = File::create(&log_file);
         if file.is_ok() {
             self.log = true;
             self.log_file = Option::from(file.unwrap());
