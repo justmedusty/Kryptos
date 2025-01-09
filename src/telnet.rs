@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug)]
 pub struct TelnetServerConnection {
@@ -31,6 +31,7 @@ pub fn print_vec(buffer: &Vec<u8>) {
 }
 pub trait ServerFunctions {
     fn read_from_connection(&mut self) -> usize;
+    fn write_from_passed_buffer(&mut self, buffer: Vec<u8>);
     fn write_to_connection(&mut self) -> usize;
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
@@ -58,13 +59,17 @@ impl ServerFunctions for TelnetServerConnection {
 
         if self.log && self.log_file.is_some() {
             let file = self.log_file.as_ref().unwrap();
-            let reference = Arc::new(Mutex::new(file));
-            let mut file = reference.lock().unwrap();
+            let reference = Arc::new(RwLock::new(file));
+            let mut file = reference.write().unwrap();
             file.write(&self.read_buffer)
                 .expect("Could not write to log file!");
         }
 
         ret
+    }
+
+    fn write_from_passed_buffer(&mut self, buffer: Vec<u8>) {
+        self.stream.write_all(&buffer).expect("Could not write to log file!");
     }
 
     fn write_to_connection(&mut self) -> usize {
@@ -133,10 +138,10 @@ impl ServerFunctions for TelnetServerConnection {
 }
 
 pub fn open_telnet_connection(
-    listener: Arc<Mutex<TcpListener>>,
+    listener: Arc<RwLock<TcpListener>>,
     conn_id: u64,
 ) -> TelnetServerConnection {
-    let listener = listener.lock().unwrap();
+    let listener = listener.read().unwrap();
     let (tcp_conn, sock_addr) = listener.accept().expect("Failed to accept connection");
 
     let read_buff = vec![0u8; 4096];
