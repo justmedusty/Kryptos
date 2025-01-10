@@ -43,10 +43,11 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
                 continue;
             }
         }
+        num += 1;
     }
-    num += 1;
 
-println!("Broadcast done, sent {} messages", num);
+
+    println!("Broadcast done, sent {} messages", num);
 }
 
 fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
@@ -78,13 +79,18 @@ fn spawn_connect_thread() {
         tcp_stream
             .write(&Vec::from(String::from("CLIENT SAYS HELLO\n").as_bytes()))
             .expect("Could not write to tcp output stream");
+        sleep(Duration::from_millis(1000));
+        loop {
+            tcp_stream.read(buf.as_mut()).unwrap();
+            if (buf[0] != 0) {
+                println!(
+                    "Received a message from the server : {}",
+                    String::from_utf8(Vec::from((*buf.clone()))).unwrap()
 
-        tcp_stream.read(buf.deref_mut()).unwrap();
-
-        println!(
-            "Received a message from the server : {}",
-            String::from_utf8(buf.to_vec()).unwrap()
-        );
+                );
+                buf.fill(0);
+            }
+        }
     });
 }
 
