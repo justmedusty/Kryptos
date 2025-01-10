@@ -74,8 +74,7 @@ impl ServerFunctions for TelnetServerConnection {
 
     fn write_to_connection(&mut self) -> usize {
         self.stream
-            .write(&self.write_buffer)
-            .expect("Could not write to connection")
+            .write(&self.write_buffer).unwrap_or_else(|_| 0)
     }
 
     fn fetch_address(&mut self) -> SocketAddr {

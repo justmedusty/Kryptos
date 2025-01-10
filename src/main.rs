@@ -15,51 +15,59 @@ type ConnectionPool = Arc<RwLock<LinkedList<Connection>>>;
 type Connection = Arc<RwLock<TelnetServerConnection>>;
 
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
-    let pool_ref = pool.read().unwrap();
-    let mut num: u64 = 0;
-    for connection in pool_ref.iter() {
-        let mut conn = RwLock::read(connection).unwrap();
-        if conn.connection_id == source {
-            drop(conn);
-            continue;
-        }
-        drop(conn);
-        let mut conn = RwLock::write(connection).unwrap();
-        conn.fill_write_buffer(message.clone()); // Consider moving this outside the loop
-        conn.write_to_connection();
-        num += 1;
-        drop(conn);
+    let connections: Vec<_>;
+    {
+        let pool_ref = pool.read().unwrap();
+        connections = pool_ref.iter().cloned().collect();
     }
+
+    let mut num: u64 = 0;
+    println!("Starting broadcast");
+
+    for connection in connections {
+        {
+            let conn = connection.read().unwrap();
+            if conn.connection_id == source {
+                continue;
+            }
+        }
+
+        println!("Sending message to {}", source);
+
+        {
+            let mut conn = connection.write().unwrap();
+            conn.fill_write_buffer(message.clone());
+        }
+
+        num += 1;
+    }
+
     println!("Broadcast done, sent {} messages", num);
 }
 
+
 fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
-    std::thread::spawn(move || {
-            let (read_buffer, connection_id, val);
-
-            {
-                let mut conn = connection.write().unwrap();
-                println!("Entering thread {}", conn.connection_id);
-                connection_id = conn.connection_id;
-                val = conn.read_from_connection();
-                if val > 0 {
-                    read_buffer = conn.read_buffer.clone();
-                    println!(
-                        "Got message on connection {} of size {}",
-                        conn.connection_id, val
-                    );
-                    conn.flush_read_buffer();
-                } else {
-                    return;
-                }
+    std::thread::spawn(move || loop {
+        let (read_buffer, connection_id, val);
+        sleep(Duration::from_secs(1));
+        {
+            let mut conn = connection.write().unwrap();
+            connection_id = conn.connection_id;
+            val = conn.read_from_connection();
+            if val > 0 {
+                read_buffer = conn.read_buffer.clone();
+                conn.flush_read_buffer();
+            } else {
+                continue;
             }
+        }
+        sleep(Duration::from_secs(1));
 
-            broadcast_message(&read_buffer, connection_id, &pool);
-
+        broadcast_message(&read_buffer, connection_id, &pool);
     });
 }
 fn spawn_connect_thread() {
-    std::thread::spawn(move || {
+    std::thread::spawn(move || loop {
         println!("Starting client thread");
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
         let mut buf = Box::new([0; 4096]);
@@ -68,16 +76,12 @@ fn spawn_connect_thread() {
             .expect("Could not write to tcp output stream");
         sleep(Duration::from_secs(2));
 
-        match tcp_stream.read(buf.deref_mut()) {
-            Ok(x) => x,
-            Err(_) => panic!("Could not read from tcp stream"),
-        };
+        tcp_stream.read(buf.deref_mut()).unwrap();
 
         println!(
             "Received a message from the client {}",
             String::from_utf8(buf.to_vec()).unwrap()
         );
-
     });
 }
 
@@ -101,9 +105,12 @@ fn main() {
         );
         let reference = Arc::new(RwLock::new(server_connection));
         let unwrapped = Arc::clone(&reference);
-        let mut pool = pool_reference.write().unwrap();
-        pool.push_front(unwrapped);
-        drop(pool);
+
+        {
+            let mut pool = pool_reference.write().unwrap();
+            pool.push_front(unwrapped);
+        }
+
         connection_id += 1;
 
         // Spawn a new thread to handle the connection
