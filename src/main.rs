@@ -25,17 +25,22 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     println!("Starting broadcast");
 
     for connection in connections {
+        let mut dest:u64 = 0;
         {
             let conn = connection.read().unwrap();
             if conn.connection_id == source {
                 continue;
             }
+            dest = conn.connection_id;
         }
 
-        println!("Sending message to {}", source);
+        println!("Sending message from {} to {}", source,dest);
 
         {
-            let mut conn = connection.write().unwrap();
+            let mut conn = match connection.write() {
+                Ok(x) => x,
+                Err(_) => continue,
+            };
             conn.fill_write_buffer(message.clone());
         }
 
@@ -74,7 +79,7 @@ fn spawn_connect_thread() {
         tcp_stream
             .write(&Vec::from(String::from("CLIENT SAYS HELLO\n").as_bytes()))
             .expect("Could not write to tcp output stream");
-        sleep(Duration::from_secs(2));
+        sleep(Duration::from_secs(15));
 
         tcp_stream.read(buf.deref_mut()).unwrap();
 
