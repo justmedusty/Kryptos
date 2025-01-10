@@ -1,10 +1,10 @@
 use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection};
-use std::collections::LinkedList;
+use std::collections::{BTreeMap, HashMap, LinkedList};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::DerefMut;
 use std::sync::{Arc, RwLock};
-use std::thread::sleep;
+use std::thread::{current, sleep};
 use std::time::Duration;
 
 mod telnet;
@@ -42,6 +42,9 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
                 Err(_) => continue,
             };
             conn.fill_write_buffer(message.clone());
+            if(conn.write_to_connection() == 0){
+
+            }
         }
 
         num += 1;
@@ -75,7 +78,8 @@ fn spawn_connect_thread() {
     std::thread::spawn(move || loop {
         println!("Starting client thread");
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
-        let mut buf = Box::new([0; 4096]);
+        let mut buf = Box::new([0; 1024]);
+
         tcp_stream
             .write(&Vec::from(String::from("CLIENT SAYS HELLO\n").as_bytes()))
             .expect("Could not write to tcp output stream");
@@ -84,7 +88,7 @@ fn spawn_connect_thread() {
         tcp_stream.read(buf.deref_mut()).unwrap();
 
         println!(
-            "Received a message from the client {}",
+            "Received a message from the server : {}",
             String::from_utf8(buf.to_vec()).unwrap()
         );
     });
@@ -113,14 +117,13 @@ fn main() {
 
         {
             let mut pool = pool_reference.write().unwrap();
-            pool.push_front(unwrapped);
+            pool.push_front(reference);
         }
 
         connection_id += 1;
 
         // Spawn a new thread to handle the connection
-        spawn_server_thread(Arc::clone(&reference), Arc::clone(&pool_reference));
-        drop(reference);
+        spawn_server_thread(Arc::clone(&unwrapped), Arc::clone(&pool_reference));
 
         sleep(Duration::new(2, 0));
     }
