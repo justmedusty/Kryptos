@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, RwLock};
@@ -52,9 +53,30 @@ pub trait ServerFunctions {
 
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
+
+        if let Err(_) = self.stream.set_nonblocking(true){
+            return 0;
+        }
+
+
         let ret = match self.stream.read(&mut self.read_buffer) {
+            Ok(0) => {
+                // Connection was closed (end of stream)
+                return 0;
+            }
             Ok(x) => x,
-            Err(_) => return 0,
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                // No data available now, return immediately
+                return 0xFFFFFFFFFFFF;
+            }
+            Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => {
+                // Connection was reset (dropped by peer)
+                return 0;
+            }
+            Err(_) => {
+                // Other errors, handle appropriately
+                return 0;
+            }
         };
 
         if self.log && self.log_file.is_some() {
