@@ -1,4 +1,6 @@
-use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION};
+use crate::telnet::{
+    open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION,
+};
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -55,14 +57,10 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                 val = conn.read_from_connection();
 
                 if val > 0 && val != VALID_CONNECTION as usize {
-
                     read_buffer = conn.read_buffer.clone();
                     conn.flush_read_buffer();
-
                 } else if val == VALID_CONNECTION as usize {
-
                     continue;
-
                 } else if val == 0 {
                     {
                         let mut pool = pool.write().unwrap();
@@ -70,17 +68,18 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                         pool.remove(conn.connection_id as usize);
                     }
 
-                    broadcast_message(&String::from("User has left").into_bytes(), conn.connection_id, &pool);
+                    broadcast_message(
+                        &String::from("User has left").into_bytes(),
+                        conn.connection_id,
+                        &pool,
+                    );
 
                     return;
-
-                }
-                else {
-                    continue
+                } else {
+                    continue;
                 }
             }
             broadcast_message(&read_buffer, connection_id, &pool);
-
         }
     });
 }
@@ -92,13 +91,18 @@ fn spawn_connect_thread() {
         tcp_stream
             .write(&Vec::from(String::from("CLIENT SAYS HELLO\n").as_bytes()))
             .expect("Could not write to tcp output stream");
+        loop {
+            let read =tcp_stream.read(buf.deref_mut()).unwrap();
+            if(buf[0] != b'\0'){
+                println!(
+                    "Received a message from the server : {}",
+                    String::from_utf8(buf.to_vec()).unwrap()
+                );
 
-        tcp_stream.read(buf.deref_mut()).unwrap();
+                buf.iter_mut().for_each(|x| *x = 0);
+            }
 
-        println!(
-            "Received a message from the server : {}",
-            String::from_utf8(buf.to_vec()).unwrap()
-        );
+        }
     });
 }
 
@@ -108,6 +112,10 @@ fn main() {
     let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
     let pool_reference = Arc::clone(&conn_pool);
+    for i in 0..15{
+        spawn_connect_thread();
+    }
+
 
     loop {
         let curr = Arc::clone(&reference);
@@ -129,6 +137,7 @@ fn main() {
         connection_id += 1;
 
         // Spawn a new thread to handle the connection
+
         spawn_server_thread(Arc::clone(&unwrapped), Arc::clone(&pool_reference));
     }
 }
