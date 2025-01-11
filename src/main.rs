@@ -1,4 +1,4 @@
-use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection};
+use crate::telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION};
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -16,7 +16,7 @@ type Connection = Arc<RwLock<TelnetServerConnection>>;
 
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     let connections: Vec<_>;
-
+    println!("Broadcast message");
     {
         let pool_ref = pool.read().unwrap();
         connections = pool_ref.iter().cloned().collect();
@@ -28,6 +28,7 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
         let mut dest: u64 = 0;
 
         let mut conn = connection.write().unwrap();
+
         if conn.connection_id == source {
             continue;
         }
@@ -35,38 +36,39 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
 
         println!("Sending message from {} to {}", source, dest);
         conn.fill_write_buffer(message.clone());
-        if conn.write_to_connection() == 0 {
-            {
-                let mut pool = pool.write().unwrap();
-                println!("DELETING NODE!");
-                pool.remove(conn.connection_id as usize);
-                continue;
-            }
-        }
+        conn.write_to_connection();
     }
     num += 1;
 
-println!("Broadcast done, sent {} messages", num);
+    println!("Broadcast done, sent {} messages of contents {}", num,String::from_utf8(message.clone()).unwrap());
 }
 
 fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
     std::thread::spawn(move || loop {
+        let (mut read_buffer, mut connection_id, mut val);
         loop {
-            let (read_buffer, connection_id, val);
 
+            sleep(Duration::from_millis(500));
             {
                 let mut conn = connection.write().unwrap();
                 connection_id = conn.connection_id;
                 val = conn.read_from_connection();
-                if val > 0 && val != 0xFFFFFFFFFFFF {
+                if val > 0 && val != VALID_CONNECTION as usize {
+                    conn.write_from_passed_buffer(Vec::from(String::from_utf8(Vec::from("WELCOME")).unwrap()));
                     read_buffer = conn.read_buffer.clone();
                     conn.flush_read_buffer();
+                } else if val == 0xFFFFFFFFFFFF {
+                    continue;
                 } else {
+                    let mut pool = pool.write().unwrap();
+                    println!("Connection {} closed", conn.connection_id);
+                    pool.remove(conn.connection_id as usize);
                     return;
                 }
             }
 
             broadcast_message(&read_buffer, connection_id, &pool);
+            sleep(Duration::from_millis(500));
         }
     });
 }
@@ -99,7 +101,7 @@ fn main() {
         sleep(Duration::from_secs(2));
         let curr = Arc::clone(&reference);
         // Accept the connection and handle it if successful
-        spawn_connect_thread();
+        // spawn_connect_thread();
 
         let mut server_connection = open_telnet_connection(curr, connection_id);
         println!(
@@ -119,7 +121,5 @@ fn main() {
 
         // Spawn a new thread to handle the connection
         spawn_server_thread(Arc::clone(&unwrapped), Arc::clone(&pool_reference));
-
-        sleep(Duration::new(2, 0));
     }
 }

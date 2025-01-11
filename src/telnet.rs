@@ -3,7 +3,7 @@ use std::io;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, RwLock};
-
+pub(crate) static VALID_CONNECTION : u64= 0xFFFFFFFFFFFF;
 #[derive(Debug)]
 pub struct TelnetServerConnection {
     socket_addr: SocketAddr,
@@ -62,12 +62,12 @@ impl ServerFunctions for TelnetServerConnection {
         let ret = match self.stream.read(&mut self.read_buffer) {
             Ok(0) => {
                 // Connection was closed (end of stream)
-                return 0;
+                return VALID_CONNECTION as usize;
             }
             Ok(x) => x,
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // No data available now, return immediately
-                return 0xFFFFFFFFFFFF;
+                return VALID_CONNECTION as usize;
             }
             Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => {
                 // Connection was reset (dropped by peer)
