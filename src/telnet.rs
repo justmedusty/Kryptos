@@ -33,7 +33,7 @@ pub fn print_vec(buffer: &Vec<u8>) {
 pub trait ServerFunctions {
     fn read_from_connection(&mut self) -> usize;
     fn write_from_passed_buffer(&mut self, buffer: Vec<u8>);
-    fn write_to_connection(&mut self) -> usize;
+    fn write_to_connection(&mut self);
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
 
@@ -94,11 +94,11 @@ impl ServerFunctions for TelnetServerConnection {
         self.stream.write_all(&buffer).expect("Could not write to log file!");
     }
 
-    fn write_to_connection(&mut self) -> usize {
-        let ret = self.stream
-            .write(&self.write_buffer).unwrap_or_else(|_| 0);
+    fn write_to_connection(&mut self) {
+        self.stream
+            .write_all(&self.write_buffer).unwrap();
         self.flush_write_buffer();
-        ret
+
     }
 
     fn fetch_address(&mut self) -> SocketAddr {
