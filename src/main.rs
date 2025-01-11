@@ -16,7 +16,7 @@ type Connection = Arc<RwLock<TelnetServerConnection>>;
 
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     let connections: Vec<_>;
-    println!("Broadcast message");
+
     {
         let pool_ref = pool.read().unwrap();
         connections = pool_ref.iter().cloned().collect();
@@ -36,12 +36,9 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
         }
         dest = conn.connection_id;
 
-        println!("Sending message from {} to {}", source, dest);
-        conn.write_from_passed_buffer(message.clone());
+        conn.write_from_passed_buffer(message);
     }
     num += 1;
-
-    println!("Broadcast done, sent {} messages of contents {}", num,String::from_utf8(message.clone()).unwrap());
 }
 
 fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
@@ -52,26 +49,36 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
             {
                 let mut conn = match connection.write() {
                     Ok(x) => x,
-                    Err(_) => return,
+                    Err(_) => break,
                 };
+
                 connection_id = conn.connection_id;
                 val = conn.read_from_connection();
 
                 if val > 0 && val != VALID_CONNECTION as usize {
-                    print!("Received!");
+
                     read_buffer = conn.read_buffer.clone();
                     conn.flush_read_buffer();
+
                 } else if val == VALID_CONNECTION as usize {
+
                     continue;
+
                 } else {
-                    let mut pool = pool.write().unwrap();
-                    println!("Connection {} closed", conn.connection_id);
-                    pool.remove(conn.connection_id as usize);
+                    {
+                        let mut pool = pool.write().unwrap();
+                        println!("Connection {} closed", conn.connection_id);
+                        pool.remove(conn.connection_id as usize);
+                    }
+
+                    broadcast_message(&String::from("User has left").into_bytes(), conn.connection_id, &pool);
+
                     return;
+
                 }
             }
-
             broadcast_message(&read_buffer, connection_id, &pool);
+
         }
     });
 }

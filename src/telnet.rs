@@ -32,7 +32,7 @@ pub fn print_vec(buffer: &Vec<u8>) {
 }
 pub trait ServerFunctions {
     fn read_from_connection(&mut self) -> usize;
-    fn write_from_passed_buffer(&mut self, buffer: Vec<u8>);
+    fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>);
     fn write_to_connection(&mut self);
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
@@ -61,7 +61,6 @@ impl ServerFunctions for TelnetServerConnection {
 
         let ret = match self.stream.read(&mut self.read_buffer) {
             Ok(0) => {
-                // Connection was closed (end of stream)
                 return VALID_CONNECTION as usize;
             }
             Ok(x) => x,
@@ -90,8 +89,8 @@ impl ServerFunctions for TelnetServerConnection {
         ret
     }
 
-    fn write_from_passed_buffer(&mut self, buffer: Vec<u8>) {
-        self.stream.write_all(&buffer).expect("Could not write to log file!");
+    fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
+        self.stream.write_all(buffer.as_ref()).expect("Could not write to log file!");
     }
 
     fn write_to_connection(&mut self) {
