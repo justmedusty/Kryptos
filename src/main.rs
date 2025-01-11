@@ -35,7 +35,6 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
             continue;
         }
         dest = conn.connection_id;
-
         conn.write_from_passed_buffer(message);
     }
     num += 1;
@@ -64,7 +63,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
 
                     continue;
 
-                } else {
+                } else if val == 0 {
                     {
                         let mut pool = pool.write().unwrap();
                         println!("Connection {} closed", conn.connection_id);
@@ -75,6 +74,9 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
 
                     return;
 
+                }
+                else {
+                    continue
                 }
             }
             broadcast_message(&read_buffer, connection_id, &pool);
