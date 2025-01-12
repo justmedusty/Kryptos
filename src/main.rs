@@ -101,7 +101,6 @@ fn spawn_connect_thread() {
 
                 buf.iter_mut().for_each(|x| *x = 0);
             }
-
         }
     });
 }
@@ -112,10 +111,7 @@ fn main() {
     let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
     let pool_reference = Arc::clone(&conn_pool);
-    for i in 0..15{
-        spawn_connect_thread();
-    }
-
+    spawn_connect_thread();
 
     loop {
         let curr = Arc::clone(&reference);

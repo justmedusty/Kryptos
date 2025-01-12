@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+use std::process::exit;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -23,7 +24,7 @@ impl PartialEq<Self> for TelnetServerConnection {
     }
 }
 
-pub fn print_vec(buffer: &Vec<u8>) {
+pub fn print_vec(buffer: &[u8]) {
     for byte in buffer {
         if *byte != b'\0' {
             print!("{}", *byte as char);
@@ -55,7 +56,6 @@ pub trait ServerFunctions {
 
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
-
         if let Err(_) = self.stream.set_nonblocking(true){
             return 0;
         }
@@ -85,17 +85,22 @@ impl ServerFunctions for TelnetServerConnection {
             file.write(&self.read_buffer)
                 .expect("Could not write to log file!");
         }
-
         ret
     }
 
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
-        self.stream.write_all(buffer.as_ref()).expect("Could not write to log file!");
+        match self.stream.write_all(buffer.as_ref()) {
+            Ok(x) => x,
+            Err(_) => exit(1),
+        };
     }
 
     fn write_to_connection(&mut self) {
-        self.stream
-            .write_all(&self.write_buffer).unwrap();
+        match self.stream
+            .write_all(&self.write_buffer) {
+            Ok(x) => x,
+            Err(_) => exit(1),
+        };
         self.flush_write_buffer();
 
     }
@@ -121,11 +126,11 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn flush_read_buffer(&mut self) {
-        self.read_buffer.clear();
+        self.read_buffer.iter().for_each(|mut x| x = &b'\0');;
     }
 
     fn flush_write_buffer(&mut self) {
-        self.write_buffer.clear();
+        self.write_buffer.iter().for_each(|mut x| x = &b'\0');
     }
 
     fn fill_write_buffer(&mut self, mut buffer: Vec<u8>) {
