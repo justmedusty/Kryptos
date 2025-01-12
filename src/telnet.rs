@@ -91,7 +91,7 @@ impl ServerFunctions for TelnetServerConnection {
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
         match self.stream.write_all(buffer.as_ref()) {
             Ok(x) => x,
-            Err(_) => exit(1),
+            Err(_) => return
         };
     }
 
@@ -99,7 +99,7 @@ impl ServerFunctions for TelnetServerConnection {
         match self.stream
             .write_all(&self.write_buffer) {
             Ok(x) => x,
-            Err(_) => exit(1),
+            Err(_) => return,
         };
         self.flush_write_buffer();
 
@@ -126,11 +126,11 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn flush_read_buffer(&mut self) {
-        self.read_buffer.iter().for_each(|mut x| x = &b'\0');;
+        self.read_buffer.iter().for_each(|mut x| x = &0);;
     }
 
     fn flush_write_buffer(&mut self) {
-        self.write_buffer.iter().for_each(|mut x| x = &b'\0');
+        self.write_buffer.iter().for_each(|mut x| x = &0);
     }
 
     fn fill_write_buffer(&mut self, mut buffer: Vec<u8>) {

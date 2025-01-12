@@ -6,8 +6,6 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::DerefMut;
 use std::sync::{Arc, RwLock};
-use std::thread::sleep;
-use std::time::Duration;
 
 mod telnet;
 
@@ -58,6 +56,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
 
                 if val > 0 && val != VALID_CONNECTION as usize {
                     read_buffer = conn.read_buffer.clone();
+                    read_buffer.resize(val as usize, 0);
                     conn.flush_read_buffer();
                 } else if val == VALID_CONNECTION as usize {
                     continue;
@@ -80,6 +79,15 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                 }
             }
             broadcast_message(&read_buffer, connection_id, &pool);
+
+            {
+                let mut conn = match connection.write() {
+                    Ok(x) => x,
+                    Err(_) => break,
+                };
+                conn.flush_read_buffer();
+                conn.flush_write_buffer();
+            }
         }
     });
 }
