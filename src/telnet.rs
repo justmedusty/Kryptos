@@ -2,11 +2,9 @@ use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
-use std::process::exit;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
 
-pub(crate) static VALID_CONNECTION : u64= 0xFFFFFFFFFFFF;
+pub(crate) static VALID_CONNECTION: u64 = 0xFFFFFFFFFFFF;
 #[derive(Debug)]
 pub struct TelnetServerConnection {
     socket_addr: SocketAddr,
@@ -14,6 +12,7 @@ pub struct TelnetServerConnection {
     pub stream: TcpStream,
     pub read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
+    pub name: String,
     log: bool,
     log_file: Option<File>,
 }
@@ -52,11 +51,16 @@ pub trait ServerFunctions {
     fn set_log_file(&mut self, log_file: String) -> u64;
 
     fn get_address(&mut self) -> SocketAddr;
+
+    fn set_name(&mut self, name: String) -> u64;
+
+    fn read_from_connection_blocking(&mut self) -> usize;
+
 }
 
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
-        if let Err(_) = self.stream.set_nonblocking(true){
+        if let Err(_) = self.stream.set_nonblocking(true) {
             return 0;
         }
         let ret = match self.stream.read(&mut self.read_buffer) {
@@ -91,18 +95,16 @@ impl ServerFunctions for TelnetServerConnection {
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
         match self.stream.write_all(buffer.as_ref()) {
             Ok(x) => x,
-            Err(_) => return
+            Err(_) => return,
         };
     }
 
     fn write_to_connection(&mut self) {
-        match self.stream
-            .write_all(&self.write_buffer) {
+        match self.stream.write_all(&self.write_buffer) {
             Ok(x) => x,
             Err(_) => return,
         };
         self.flush_write_buffer();
-
     }
 
     fn fetch_address(&mut self) -> SocketAddr {
@@ -126,7 +128,7 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn flush_read_buffer(&mut self) {
-        self.read_buffer.iter().for_each(|mut x| x = &0);;
+        self.read_buffer.iter().for_each(|mut x| x = &0);
     }
 
     fn flush_write_buffer(&mut self) {
@@ -162,6 +164,44 @@ impl ServerFunctions for TelnetServerConnection {
     fn get_address(&mut self) -> SocketAddr {
         self.socket_addr
     }
+
+    fn set_name(&mut self, name: String) -> u64 {
+        if name.is_empty() || name == "" {
+            return 0;
+        }
+        let ret = name.len() as u64;
+        self.name = name;
+        ret
+    }
+
+    fn read_from_connection_blocking(&mut self) -> usize {
+        if let Err(_) = self.stream.set_nonblocking(false) {
+            return 0;
+        }
+        let ret = match self.stream.read(&mut self.read_buffer) {
+            Ok(0) => {
+                0
+            }
+            Ok(x) => x,
+            Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => {
+                // Connection was reset (dropped by peer)
+                return 0;
+            }
+            Err(_) => {
+                // Other errors, handle appropriately
+                return 0;
+            }
+        };
+
+        if self.log && self.log_file.is_some() {
+            let file = self.log_file.as_ref().unwrap();
+            let reference = Arc::new(RwLock::new(file));
+            let mut file = reference.write().unwrap();
+            file.write(&self.read_buffer)
+                .expect("Could not write to log file!");
+        }
+        ret
+    }
 }
 
 pub fn open_telnet_connection(
@@ -180,6 +220,7 @@ pub fn open_telnet_connection(
         socket_addr: sock_addr,
         read_buffer: read_buff,
         write_buffer: write_buff,
+        name: "".to_string(),
         log: false,
         log_file: None,
     };
