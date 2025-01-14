@@ -43,20 +43,21 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
             continue;
         }
         dest = conn.connection_id;
-        println!("Sending {} to {}",String::from_utf8_lossy(message),conn.name);
         conn.write_from_passed_buffer(message);
     }
     num += 1;
 }
 fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
-
-
+    let mut greeted = false;
     loop {
         let mut conn = connection.write().unwrap();
-        conn.flush_read_buffer();
         conn.flush_write_buffer();
-        conn.fill_write_buffer(Vec::from(GREETING.clone().trim().as_bytes()));
-        conn.write_to_connection();
+        if !greeted {
+            conn.fill_write_buffer(Vec::from(GREETING.clone().trim().as_bytes()));
+            conn.write_to_connection();
+            conn.flush_write_buffer();
+        }
+        greeted = true;
         let length = conn.read_from_connection_blocking();
         if length == 0 {
             return;
@@ -64,7 +65,7 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
         let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
             .trim()
             .to_string();
-
+        conn.flush_read_buffer();
 
         println!("New connection: {}", name);
 
@@ -72,18 +73,16 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
             conn.flush_write_buffer();
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING.clone()));
             conn.write_to_connection();
+            conn.flush_write_buffer();
             let mut name = name.clone();
             name.truncate(length as usize);
             conn.set_name(name);
-            conn.flush_read_buffer();
-            conn.flush_write_buffer();
             break;
         }
-        conn.flush_read_buffer();
+
         conn.flush_write_buffer();
         conn.fill_write_buffer(Vec::from(INVALID_NAME.clone()));
         conn.write_to_connection();
-
     }
 
     {
@@ -114,9 +113,10 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                     read_buffer.resize(val as usize, 0);
                     let mut prefix = conn.name.clone().into_bytes();
                     prefix.push(b':');
+                    prefix.push(b' ');
                     prefix.extend_from_slice(&read_buffer);
+                    prefix.push(b'\n');
                     read_buffer = prefix;
-                    println!("{}",String::from_utf8_lossy(&*read_buffer.to_vec()).trim());
                 } else if val == VALID_CONNECTION as usize {
                     continue;
                 } else if val == 0 {
@@ -127,11 +127,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                     }
                     let message = format!("{} has left", conn.name);
                     let message_vec = message.into_bytes();
-                    broadcast_message(
-                        &message_vec,
-                        conn.connection_id,
-                        &pool,
-                    );
+                    broadcast_message(&message_vec, conn.connection_id, &pool);
 
                     return;
                 } else {
@@ -188,7 +184,6 @@ fn main() {
 
         let mut server_connection = open_telnet_connection(curr, connection_id);
         connection_id += 1;
-
 
         println!(
             "Accepted connection from {}",
