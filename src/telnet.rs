@@ -65,7 +65,7 @@ impl ServerFunctions for TelnetServerConnection {
         }
         let ret = match self.stream.read(&mut self.read_buffer) {
             Ok(0) => {
-                return VALID_CONNECTION as usize;
+                return 0;
             }
             Ok(x) => x,
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {

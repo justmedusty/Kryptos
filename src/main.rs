@@ -6,9 +6,9 @@ use std::fmt::Display;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::{Add, DerefMut};
-use std::process::exit;
-use std::ptr::from_mut;
 use std::sync::{Arc, RwLock};
+use std::thread::sleep;
+use std::time::Duration;
 
 mod telnet;
 
@@ -31,7 +31,7 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     let mut num: u64 = 0;
 
     for connection in connections {
-        println!("Sending from {}",source);
+        sleep(Duration::from_millis(50)); // so we take our time with each op this leads to less dropped messages, not very elegant but hey it works
         let mut dest: u64 = 0;
 
         let mut conn = match connection.write() {
@@ -43,7 +43,7 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
             continue;
         }
         dest = conn.connection_id;
-
+        println!("Sending {} to {}",String::from_utf8_lossy(message),conn.name);
         conn.write_from_passed_buffer(message);
     }
     num += 1;
@@ -53,34 +53,37 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 
     loop {
         let mut conn = connection.write().unwrap();
+        conn.flush_read_buffer();
+        conn.flush_write_buffer();
         conn.fill_write_buffer(Vec::from(GREETING.clone().trim().as_bytes()));
         conn.write_to_connection();
         let length = conn.read_from_connection_blocking();
-
+        if length == 0 {
+            return;
+        }
         let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
             .trim()
             .to_string();
 
-        println!("New connection: {} len {}", name, length);
 
-        conn.flush_read_buffer();
-        conn.flush_write_buffer();
+        println!("New connection: {}", name);
+
         if (length > 4 && length < 25) {
             conn.flush_write_buffer();
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING.clone()));
             conn.write_to_connection();
-            conn.flush_read_buffer();
-            conn.flush_write_buffer();
             let mut name = name.clone();
             name.truncate(length as usize);
             conn.set_name(name);
+            conn.flush_read_buffer();
+            conn.flush_write_buffer();
             break;
         }
-
-        conn.fill_write_buffer(Vec::from(INVALID_NAME.clone()));
-        conn.write_to_connection();
         conn.flush_read_buffer();
         conn.flush_write_buffer();
+        conn.fill_write_buffer(Vec::from(INVALID_NAME.clone()));
+        conn.write_to_connection();
+
     }
 
     {
@@ -114,7 +117,6 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                     prefix.extend_from_slice(&read_buffer);
                     read_buffer = prefix;
                     println!("{}",String::from_utf8_lossy(&*read_buffer.to_vec()).trim());
-                    conn.flush_read_buffer();
                 } else if val == VALID_CONNECTION as usize {
                     continue;
                 } else if val == 0 {
@@ -161,7 +163,7 @@ fn spawn_connect_thread() {
             .write(&Vec::from(String::from("TESTBOT\n").as_bytes()))
             .expect("Could not write to tcp output stream");
         loop {
-            let read = tcp_stream.read(buf.deref_mut()).unwrap();
+            tcp_stream.read(buf.deref_mut()).unwrap();
             if (buf[0] != b'\0') {
                 println!(
                     "Received a message from the server : {}",
@@ -180,11 +182,12 @@ fn main() {
     let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
     let pool_reference = Arc::clone(&conn_pool);
-    spawn_connect_thread();
+
     loop {
         let curr = Arc::clone(&reference);
 
         let mut server_connection = open_telnet_connection(curr, connection_id);
+        connection_id += 1;
 
 
         println!(
