@@ -2,19 +2,21 @@ use crate::telnet::{
     open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION,
 };
 use std::collections::VecDeque;
+use std::fmt::Display;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::{Add, DerefMut};
 use std::process::exit;
+use std::ptr::from_mut;
 use std::sync::{Arc, RwLock};
 
 mod telnet;
 
 static PORT: u64 = 6969;
 
-static GREETING: &'static str = "Welcome to the server, what will your username be?";
-static INVALID_NAME: &'static str = "That is not a valid username. What will your username be?";
-static SUCCESS_STRING: &'static str = "Username is valid, joining session";
+static GREETING: &'static str = "Welcome to the server, what will your username be? ";
+static INVALID_NAME: &'static str = "That is not a valid username. What will your username be? ";
+static SUCCESS_STRING: &'static str = "Username is valid, joining session\n";
 
 type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 type Connection = Arc<RwLock<TelnetServerConnection>>;
@@ -59,9 +61,10 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
             .trim()
             .to_string();
 
+        println!("New connection: {} len {}", name, length);
+
         conn.flush_read_buffer();
         conn.flush_write_buffer();
-        println!("New connection: {} len {}", name, length);
         if (length > 4 && length < 25) {
             conn.flush_write_buffer();
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING.clone()));
@@ -120,9 +123,10 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                         println!("Connection {} closed", conn.connection_id);
                         pool.remove(conn.connection_id as usize);
                     }
-
+                    let message = format!("{} has left", conn.name);
+                    let message_vec = message.into_bytes();
                     broadcast_message(
-                        &String::from("User has left").into_bytes(),
+                        &message_vec,
                         conn.connection_id,
                         &pool,
                     );

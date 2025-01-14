@@ -128,11 +128,15 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn flush_read_buffer(&mut self) {
-        self.read_buffer.iter().for_each(|mut x| x = &0);
+        for x in &mut self.read_buffer {
+            *x = 0;
+        }
     }
 
     fn flush_write_buffer(&mut self) {
-        self.write_buffer.iter().for_each(|mut x| x = &0);
+        for x in &mut self.write_buffer {
+            *x = 0;
+        }
     }
 
     fn fill_write_buffer(&mut self, mut buffer: Vec<u8>) {
