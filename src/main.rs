@@ -7,8 +7,6 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::{Add, DerefMut};
 use std::sync::{Arc, RwLock};
-use std::thread::sleep;
-use std::time::Duration;
 
 mod telnet;
 
@@ -22,33 +20,30 @@ type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 type Connection = Arc<RwLock<TelnetServerConnection>>;
 
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
-    let connections: Vec<_>;
-
+    println!("broadcasting message from {}", source);
     {
         let pool_ref = pool.read().unwrap();
-        connections = pool_ref.iter().cloned().collect();
-    }
-    let mut num: u64 = 0;
 
-    for connection in connections {
-        sleep(Duration::from_millis(50)); // so we take our time with each op this leads to less dropped messages, not very elegant but hey it works
-        let mut dest: u64 = 0;
+        for connection in pool_ref.iter() {
+            let mut dest: u64 = 0;
 
-        let mut conn = match connection.write() {
-            Ok(x) => x,
-            Err(_) => continue,
-        };
+            let mut conn = match connection.write() {
+                Ok(x) => x,
+                Err(_) => continue,
+            };
 
-        if conn.connection_id == source {
-            continue;
+            if conn.connection_id == source {
+                continue;
+            }
+            dest = conn.connection_id;
+            println!("Sending message to dest: {}", dest);
+            conn.write_from_passed_buffer(message);
         }
-        dest = conn.connection_id;
-        conn.write_from_passed_buffer(message);
     }
-    num += 1;
 }
-fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
+fn handle_new_connection(id: u64, connection: Connection, pool: ConnectionPool) {
     let mut greeted = false;
+    let mut username: String = "".to_string();
     loop {
         let mut conn = connection.write().unwrap();
         conn.flush_write_buffer();
@@ -77,6 +72,7 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
             let mut name = name.clone();
             name.truncate(length as usize);
             conn.set_name(name);
+            username = conn.name.clone();
             break;
         }
 
@@ -84,20 +80,29 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
         conn.fill_write_buffer(Vec::from(INVALID_NAME.clone()));
         conn.write_to_connection();
     }
-
+    let count;
     {
         let mut pool_ref = pool.write().unwrap();
-        let count = pool_ref.iter().count();
-        pool_ref.insert(count, connection);
+        count = pool_ref.iter().count();
+        pool_ref.insert(count, connection.clone());
     }
+
+    {
+        let mut conn = connection.write().unwrap();
+        conn.connection_id = count as u64;
+    }
+
+    let message = format!("{} has joined\n", username);
+    let message_vec = message.into_bytes();
+    broadcast_message(&message_vec, id, &pool);
 
     return;
 }
 
-fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
+fn spawn_server_thread(id: u64, connection: Connection, pool: ConnectionPool) {
     std::thread::spawn(move || loop {
         let (mut read_buffer, mut connection_id, mut val);
-        handle_new_connection(connection.clone(), pool.clone());
+        handle_new_connection(id, connection.clone(), pool.clone());
         loop {
             {
                 let mut conn = match connection.write() {
@@ -125,7 +130,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                         println!("Connection {} closed", conn.connection_id);
                         pool.remove(conn.connection_id as usize);
                     }
-                    let message = format!("{} has left", conn.name);
+                    let message = format!("{} has left\n", conn.name);
                     let message_vec = message.into_bytes();
                     broadcast_message(&message_vec, conn.connection_id, &pool);
 
@@ -186,7 +191,7 @@ fn main() {
         connection_id += 1;
 
         println!(
-            "Accepted connection from {}",
+            "Accepted connection from {} conn id {connection_id}",
             server_connection.get_address()
         );
         let reference = Arc::new(RwLock::new(server_connection));
@@ -194,6 +199,10 @@ fn main() {
 
         // Spawn a new thread to handle the connection
 
-        spawn_server_thread(Arc::clone(&unwrapped), Arc::clone(&pool_reference));
+        spawn_server_thread(
+            connection_id,
+            Arc::clone(&unwrapped),
+            Arc::clone(&pool_reference),
+        );
     }
 }
