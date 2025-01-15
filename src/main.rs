@@ -19,6 +19,9 @@ static SUCCESS_STRING: &'static str = "Username is valid, joining session\n";
 type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 type Connection = Arc<RwLock<TelnetServerConnection>>;
 
+/*
+Broadcast message to every connection in the active pool except the one who sent it
+*/
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     println!("broadcasting message from {}", source);
     {
@@ -41,6 +44,11 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
         }
     }
 }
+
+/*
+Handle grabbing the username of the new connection, must be between 5 and 25 characters long
+Sets up the connection with the username provided and inserts it into the connection pool before returning into the main server thread loop
+*/
 fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let mut greeted = false;
     let mut username: String = "".to_string();
@@ -98,7 +106,9 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 
     return;
 }
-
+/*
+   Main server loop, socket is nonblocking so that it will not stay blocked while inside a locked context (this would break the broadcast function) , broadcasts on leave so others are alerted
+*/
 fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
     std::thread::spawn(move || loop {
         let (mut read_buffer, mut connection_id, mut val);
@@ -140,7 +150,6 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                 conn.flush_read_buffer();
                 conn.flush_write_buffer();
             }
-
         }
         let conn_id;
         let name;
@@ -158,7 +167,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
         }
         let message = format!("{} has left\n", name);
         let message_vec = message.into_bytes();
-        broadcast_message(&message_vec,conn_id, &pool);
+        broadcast_message(&message_vec, conn_id, &pool);
         return;
     });
 }
@@ -186,10 +195,12 @@ fn spawn_connect_thread() {
         }
     });
 }
-
+/*
+   Main loop, binds to all addresses possible, listens for connections and spawns threads on each new connection
+*/
 fn main() {
     let conn_pool = ConnectionPool::new(RwLock::new(Default::default()));
-    let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
+    let server_listener: TcpListener = TcpListener::bind(format!("0.0.0.0:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
     let pool_reference = Arc::clone(&conn_pool);
 
