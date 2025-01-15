@@ -41,7 +41,7 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
         }
     }
 }
-fn handle_new_connection(id: u64, connection: Connection, pool: ConnectionPool) {
+fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let mut greeted = false;
     let mut username: String = "".to_string();
     loop {
@@ -94,15 +94,15 @@ fn handle_new_connection(id: u64, connection: Connection, pool: ConnectionPool) 
 
     let message = format!("{} has joined\n", username);
     let message_vec = message.into_bytes();
-    broadcast_message(&message_vec, id, &pool);
+    broadcast_message(&message_vec, count as u64, &pool);
 
     return;
 }
 
-fn spawn_server_thread(id: u64, connection: Connection, pool: ConnectionPool) {
+fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
     std::thread::spawn(move || loop {
         let (mut read_buffer, mut connection_id, mut val);
-        handle_new_connection(id, connection.clone(), pool.clone());
+        handle_new_connection(connection.clone(), pool.clone());
         loop {
             {
                 let mut conn = match connection.write() {
@@ -178,7 +178,6 @@ fn spawn_connect_thread() {
 }
 
 fn main() {
-    let mut connection_id = 0;
     let conn_pool = ConnectionPool::new(RwLock::new(Default::default()));
     let server_listener: TcpListener = TcpListener::bind(format!("127.0.0.1:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
@@ -187,11 +186,10 @@ fn main() {
     loop {
         let curr = Arc::clone(&reference);
 
-        let mut server_connection = open_telnet_connection(curr, connection_id);
-        connection_id += 1;
+        let mut server_connection = open_telnet_connection(curr, 0 /* Placeholder value */);
 
         println!(
-            "Accepted connection from {} conn id {connection_id}",
+            "Accepted connection from {}",
             server_connection.get_address()
         );
         let reference = Arc::new(RwLock::new(server_connection));
@@ -199,10 +197,6 @@ fn main() {
 
         // Spawn a new thread to handle the connection
 
-        spawn_server_thread(
-            connection_id,
-            Arc::clone(&unwrapped),
-            Arc::clone(&pool_reference),
-        );
+        spawn_server_thread(Arc::clone(&unwrapped), Arc::clone(&pool_reference));
     }
 }
