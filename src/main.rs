@@ -125,16 +125,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                 } else if val == VALID_CONNECTION as usize {
                     continue;
                 } else if val == 0 {
-                    {
-                        let mut pool = pool.write().unwrap();
-                        println!("Connection {} closed", conn.connection_id);
-                        pool.remove(conn.connection_id as usize);
-                    }
-                    let message = format!("{} has left\n", conn.name);
-                    let message_vec = message.into_bytes();
-                    broadcast_message(&message_vec, conn.connection_id, &pool);
-
-                    return;
+                    break;
                 } else {
                     continue;
                 }
@@ -149,7 +140,26 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                 conn.flush_read_buffer();
                 conn.flush_write_buffer();
             }
+
         }
+        let conn_id;
+        let name;
+        {
+            let conn = connection.read().unwrap();
+            conn_id = conn.connection_id;
+            name = conn.name.clone();
+        }
+
+        println!("Connection {} closed", conn_id);
+
+        {
+            let mut pool = pool.write().unwrap();
+            pool.remove(conn_id as usize);
+        }
+        let message = format!("{} has left\n", name);
+        let message_vec = message.into_bytes();
+        broadcast_message(&message_vec,conn_id, &pool);
+        return;
     });
 }
 /*

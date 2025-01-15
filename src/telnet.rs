@@ -55,9 +55,18 @@ pub trait ServerFunctions {
     fn set_name(&mut self, name: String) -> u64;
 
     fn read_from_connection_blocking(&mut self) -> usize;
-
 }
-
+macro_rules! write_to_log {
+    ($self:expr) => {
+        if $self.log && $self.log_file.is_some() {
+            let file = $self.log_file.as_ref().unwrap();
+            let reference = Arc::new(RwLock::new(file));
+            let mut file = reference.write().unwrap();
+            file.write(&$self.read_buffer)
+                .expect("Could not write to log file!");
+        }
+    };
+}
 impl ServerFunctions for TelnetServerConnection {
     fn read_from_connection(&mut self) -> usize {
         if let Err(_) = self.stream.set_nonblocking(true) {
@@ -82,13 +91,7 @@ impl ServerFunctions for TelnetServerConnection {
             }
         };
 
-        if self.log && self.log_file.is_some() {
-            let file = self.log_file.as_ref().unwrap();
-            let reference = Arc::new(RwLock::new(file));
-            let mut file = reference.write().unwrap();
-            file.write(&self.read_buffer)
-                .expect("Could not write to log file!");
-        }
+        write_to_log!(self);
         ret
     }
 
@@ -183,9 +186,7 @@ impl ServerFunctions for TelnetServerConnection {
             return 0;
         }
         let ret = match self.stream.read(&mut self.read_buffer) {
-            Ok(0) => {
-                0
-            }
+            Ok(0) => 0,
             Ok(x) => x,
             Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => {
                 // Connection was reset (dropped by peer)
@@ -197,13 +198,7 @@ impl ServerFunctions for TelnetServerConnection {
             }
         };
 
-        if self.log && self.log_file.is_some() {
-            let file = self.log_file.as_ref().unwrap();
-            let reference = Arc::new(RwLock::new(file));
-            let mut file = reference.write().unwrap();
-            file.write(&self.read_buffer)
-                .expect("Could not write to log file!");
-        }
+        write_to_log!(self);
         ret
     }
 }
