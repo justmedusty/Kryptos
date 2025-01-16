@@ -202,7 +202,9 @@ impl ServerFunctions for TelnetServerConnection {
         ret
     }
 }
-
+/*
+    Open connection sets up a new TelnetServerConnection object with the new connection found on the listener.
+ */
 pub fn open_telnet_connection(
     listener: Arc<RwLock<TcpListener>>,
     conn_id: u64,

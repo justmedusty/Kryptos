@@ -12,9 +12,9 @@ mod telnet;
 
 static PORT: u64 = 6969;
 
-static GREETING: &'static str = "Welcome to the server, what will your username be? ";
-static INVALID_NAME: &'static str = "That is not a valid username. What will your username be? ";
-static SUCCESS_STRING: &'static str = "Username is valid, joining session\n";
+const GREETING: &'static str = "Welcome to the server, what will your username be? :";
+const INVALID_NAME: &'static str = "That is not a valid username. What will your username be? :";
+const SUCCESS_STRING: &'static str = "Username is valid, joining session\n";
 
 type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 type Connection = Arc<RwLock<TelnetServerConnection>>;
@@ -23,25 +23,21 @@ type Connection = Arc<RwLock<TelnetServerConnection>>;
 Broadcast message to every connection in the active pool except the one who sent it
 */
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
-    println!("broadcasting message from {}", source);
-    {
-        let pool_ref = pool.read().unwrap();
+    let pool_ref = pool.read().unwrap();
 
-        for connection in pool_ref.iter() {
-            let mut dest: u64 = 0;
+    for connection in pool_ref.iter() {
+        let mut dest: u64 = 0;
 
-            let mut conn = match connection.write() {
-                Ok(x) => x,
-                Err(_) => continue,
-            };
+        let mut conn = match connection.write() {
+            Ok(x) => x,
+            Err(_) => continue,
+        };
 
-            if conn.connection_id == source {
-                continue;
-            }
-            dest = conn.connection_id;
-            println!("Sending message to dest: {}", dest);
-            conn.write_from_passed_buffer(message);
+        if conn.connection_id == source {
+            continue;
         }
+        dest = conn.connection_id;
+        conn.write_from_passed_buffer(message);
     }
 }
 
@@ -52,43 +48,49 @@ Sets up the connection with the username provided and inserts it into the connec
 fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let mut greeted = false;
     let mut username: String = "".to_string();
+
     loop {
         let mut conn = connection.write().unwrap();
-        conn.flush_write_buffer();
         if !greeted {
             conn.fill_write_buffer(Vec::from(GREETING.clone().trim().as_bytes()));
             conn.write_to_connection();
-            conn.flush_write_buffer();
         }
+
         greeted = true;
+
         let length = conn.read_from_connection_blocking();
+
         if length == 0 {
             return;
         }
+
         let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
             .trim()
             .to_string();
         conn.flush_read_buffer();
 
-        println!("New connection: {}", name);
-
-        if (length > 4 && length < 25) {
-            conn.flush_write_buffer();
+        if length > 4 && length < 25 {
+            println!("New connection: {}", name);
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING.clone()));
             conn.write_to_connection();
-            conn.flush_write_buffer();
             let mut name = name.clone();
-            name.truncate(length as usize);
+            name.truncate(length);
             conn.set_name(name);
             username = conn.name.clone();
             break;
         }
 
-        conn.flush_write_buffer();
         conn.fill_write_buffer(Vec::from(INVALID_NAME.clone()));
         conn.write_to_connection();
     }
+    /*
+       Once user has provided a valid username we will insert into the pool and broadcast a message to all other connected parties
+    */
     let count;
+
+    /*
+        Put the bottom two snippets in their own scope block so as to keep the lock/unlock timing from blocking too much should somewhere else need to access the connection or pool
+     */
     {
         let mut pool_ref = pool.write().unwrap();
         count = pool_ref.iter().count();
@@ -103,7 +105,6 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let message = format!("{} has joined\n", username);
     let message_vec = message.into_bytes();
     broadcast_message(&message_vec, count as u64, &pool);
-
     return;
 }
 /*
@@ -125,7 +126,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
 
                 if val > 0 && val != VALID_CONNECTION as usize {
                     read_buffer = conn.read_buffer.clone();
-                    read_buffer.resize(val as usize, 0);
+                    read_buffer.resize(val, 0);
                     let mut prefix = conn.name.clone().into_bytes();
                     prefix.push(b':');
                     prefix.push(b' ');
@@ -148,7 +149,6 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
                     Err(_) => break,
                 };
                 conn.flush_read_buffer();
-                conn.flush_write_buffer();
             }
         }
         let conn_id;
@@ -184,7 +184,7 @@ fn spawn_connect_thread() {
             .expect("Could not write to tcp output stream");
         loop {
             tcp_stream.read(buf.deref_mut()).unwrap();
-            if (buf[0] != b'\0') {
+            if buf[0] != b'\0' {
                 println!(
                     "Received a message from the server : {}",
                     String::from_utf8(buf.to_vec()).unwrap()
