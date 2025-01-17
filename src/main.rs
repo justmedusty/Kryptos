@@ -1,6 +1,7 @@
 use crate::telnet::{
     open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION,
 };
+use rand::random;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::{Read, Write};
@@ -20,8 +21,19 @@ type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 type Connection = Arc<RwLock<TelnetServerConnection>>;
 
 /*
+   This is not being used yet but can be used to implement a very basic auth mechanism.
+*/
+fn generate_session_token() -> String {
+    random::<u128>()
+        .to_string()
+        .add(random::<u128>().to_string().as_str())
+        .to_string()
+}
+
+/*
 Broadcast message to every connection in the active pool except the one who sent it
 */
+
 fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     let pool_ref = pool.read().unwrap();
 
@@ -89,8 +101,8 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let count;
 
     /*
-        Put the bottom two snippets in their own scope block so as to keep the lock/unlock timing from blocking too much should somewhere else need to access the connection or pool
-     */
+       Put the bottom two snippets in their own scope block so as to keep the lock/unlock timing from blocking too much should somewhere else need to access the connection or pool
+    */
     {
         let mut pool_ref = pool.write().unwrap();
         count = pool_ref.iter().count();
@@ -199,6 +211,9 @@ fn spawn_connect_thread() {
    Main loop, binds to all addresses possible, listens for connections and spawns threads on each new connection
 */
 fn main() {
+    let session_token = generate_session_token();
+    println!("Starting telnet server...");
+    println!("Session token: {}", session_token);
     let conn_pool = ConnectionPool::new(RwLock::new(Default::default()));
     let server_listener: TcpListener = TcpListener::bind(format!("0.0.0.0:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
