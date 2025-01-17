@@ -1,15 +1,18 @@
 use crate::telnet::{
     open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION,
 };
-use rand::random;
+use rand::{Rng};
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::{Add, DerefMut};
 use std::sync::{Arc, RwLock};
+use base64::Engine;
+use rand::distr::Alphanumeric;
 
 mod telnet;
+mod cryptography;
 
 static PORT: u64 = 6969;
 
@@ -24,12 +27,16 @@ type Connection = Arc<RwLock<TelnetServerConnection>>;
    This is not being used yet but can be used to implement a very basic auth mechanism.
 */
 fn generate_session_token() -> String {
-    random::<u128>()
-        .to_string()
-        .add(random::<u128>().to_string().as_str())
-        .to_string()
-}
+    // Generate a random alphanumeric string
+    let len = 64;
+    let random_string: String = rand::rng()
+        .sample_iter(&Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect();
 
+    random_string
+}
 /*
 Broadcast message to every connection in the active pool except the one who sent it
 */
