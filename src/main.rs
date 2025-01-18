@@ -3,12 +3,10 @@ use crate::telnet::{
 };
 use rand::{Rng};
 use std::collections::VecDeque;
-use std::fmt::Display;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::{Add, DerefMut};
 use std::sync::{Arc, RwLock};
-use base64::Engine;
 use rand::distr::Alphanumeric;
 
 mod telnet;

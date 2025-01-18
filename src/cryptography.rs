@@ -53,7 +53,7 @@ impl Rc4State {
 
         let mut j = 0;
 
-        let &mut key = self.key.as_mut().unwrap(); // can just call unwrap since we checked at the beginning of the function
+        let mut key = self.key.as_mut().unwrap().key; // can just call unwrap since we checked at the beginning of the function
 
         for i in 0..KEY_SIZE_BYTES {
             j = (j + self.s[i] as usize + key[i % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
@@ -67,7 +67,7 @@ impl Rc4State {
     }
     ///prga (pseudo-random generator algorithm) sets up the output buffer with pseudo random bytes that are derived from the initial keystream with various swaps for each byte in the buffer
     /// Finally the final output byte is grabbed from adding the value in the new swapped values of i and j in the keystream (s array) mod keysize
-    fn prga(&mut self, output_buffer: &mut &[u8]) {
+    fn prga(&mut self, output_buffer: &mut [u8]) {
         for byte in output_buffer {
             self.i = (self.i + 1) % KEY_SIZE_BYTES;
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
@@ -77,7 +77,21 @@ impl Rc4State {
         }
     }
 
-    fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {}
+    fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
+        match self.key_scheduling() {
+            Ok(_) => (),
+            Err(_) => {
+                println!("Key scheduling failed you must generate a key first!");
+                return;
+            }
+        }
+        self.prga(output);
+        for (i, input_byte) in input.iter().enumerate() {
+            output[i] ^= input_byte;
+        }
+    }
 
-    fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {}
+    fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
+        self.encrypt(input, output);
+    }
 }
