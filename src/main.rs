@@ -43,8 +43,6 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
     let pool_ref = pool.read().unwrap();
 
     for connection in pool_ref.iter() {
-        let mut dest: u64 = 0;
-
         let mut conn = match connection.write() {
             Ok(x) => x,
             Err(_) => continue,
@@ -53,7 +51,7 @@ fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
         if conn.connection_id == source {
             continue;
         }
-        dest = conn.connection_id;
+
         conn.write_from_passed_buffer(message);
     }
 }
