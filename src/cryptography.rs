@@ -1,4 +1,4 @@
-use rand::{rngs::ThreadRng, RngCore};
+use rand::RngCore;
 
 const KEY_SIZE_BYTES: usize = 256;
 
@@ -35,14 +35,13 @@ impl Rc4State {
 
     fn initialize(&mut self) {
         self.generate_key();
-        self.key_scheduling();
     }
 
     /// Generates a key for your Rc4State object, this is called automatically on invocation of ::new however you can call it again if you wish to regenerate a new key
     /// The key is of size 256 bytes (4096 bits)
     fn generate_key(&mut self) {
         let mut key = [0u8; KEY_SIZE_BYTES];
-        rand::thread_rng().fill_bytes(&mut key); // Fixed to use a random generator
+        rand::rng().fill_bytes(&mut key); // Fixed to use a random generator
         self.key = Rc4Key::new(key);
     }
 
@@ -62,23 +61,33 @@ impl Rc4State {
             self.s.swap(i, j);
         }
 
+        self.i = 0;
+        self.j = 0;
     }
 
     /// prga (pseudo-random generator algorithm) sets up the keystream buffer with pseudo random bytes derived from the initial keystream
     fn prga(&mut self, output_buffer: &mut [u8]) {
-        self.i = 0;
-        self.j = 0;
+        self.key_scheduling();
         for byte in output_buffer {
             self.i = (self.i + 1) % KEY_SIZE_BYTES;
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
             self.s.swap(self.i, self.j);
             let k = self.s[(self.s[self.i] as usize + self.s[self.j] as usize) % KEY_SIZE_BYTES];
             *byte = k;
+            print!("{:02x}", byte);
         }
+
+        println!();
     }
 
     fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
         let mut keystream = vec![0u8; input.len()];
+
+        if (output.len() < input.len()) {
+            println!("RC4 encrypt: output buffer too short");
+            return;
+        }
+
         self.prga(&mut keystream);
 
         for (i, &input_byte) in input.iter().enumerate() {
@@ -110,7 +119,7 @@ mod rc4tests {
             output[i] = 'A' as u8;
             input[i] = 'A' as u8;
         }
-        assert_eq!(input,output);
+        assert_eq!(input, output);
         rc4.encrypt(&input, &mut output);
 
         for i in 0..output.len() {
@@ -123,11 +132,11 @@ mod rc4tests {
     #[test]
     fn test_decryption() {
         let mut rc4 = Rc4State::new();
-        let mut input = [0; 256];
-        let mut output = [0; 256];
+        let mut input = [0; KEY_SIZE_BYTES];
+        let mut output = [0; KEY_SIZE_BYTES];
         /// Set them both just so we can ensure they are not the same after
         for i in 0..input.len() {
-            if (i % 2 == 0) {
+            if i % 2 == 0 {
                 input[i] = 'B' as u8;
                 output[i] = 'B' as u8;
                 continue;
@@ -136,15 +145,18 @@ mod rc4tests {
             input[i] = 'A' as u8;
         }
 
+        assert_eq!(input, output);
+        let original_input = input.clone();
         rc4.encrypt(&input, &mut output);
-
-
         rc4.decrypt(&output, &mut input);
 
         for i in 0..output.len() {
-            print!("output {} : input {}\n", output[i], input[i]);
+            print!(
+                "i {} original {} : input {}\n",
+                i, original_input[i], input[i]
+            );
         }
 
-        assert_eq!(input, output);
+        assert_eq!(input, original_input);
     }
 }
