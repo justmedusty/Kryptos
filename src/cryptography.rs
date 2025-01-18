@@ -6,7 +6,7 @@ struct Rc4State {
     s: [u8; KEY_SIZE_BYTES],
     i: usize,
     j: usize,
-    key: Rc4Key,  // This should not be Option
+    key: Rc4Key,
 }
 
 struct Rc4Key {
@@ -35,7 +35,7 @@ impl Rc4State {
 
     fn initialize(&mut self) {
         self.generate_key();
-        self.key_scheduling().expect("this should not happen");
+        self.key_scheduling();
     }
 
     /// Generates a key for your Rc4State object, this is called automatically on invocation of ::new however you can call it again if you wish to regenerate a new key
@@ -47,7 +47,7 @@ impl Rc4State {
     }
 
     /// key_scheduling sets up the S array (key stream) with initial values getting ready to begin the encryption process.
-    fn key_scheduling(&mut self) -> Result<(), i8> {
+    fn key_scheduling(&mut self) {
         let key = &self.key.key;
 
         // Initialize the s array to the range [0..255]
@@ -58,18 +58,16 @@ impl Rc4State {
         let mut j = 0;
 
         for i in 0..KEY_SIZE_BYTES {
-            j = (j + self.s[i] as usize + key[i % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
+            j = (j + self.s[i] as usize + key[i] as usize) % KEY_SIZE_BYTES;
             self.s.swap(i, j);
         }
 
-        self.i = 0;
-        self.j = 0;
-
-        Ok(())
     }
 
     /// prga (pseudo-random generator algorithm) sets up the keystream buffer with pseudo random bytes derived from the initial keystream
     fn prga(&mut self, output_buffer: &mut [u8]) {
+        self.i = 0;
+        self.j = 0;
         for byte in output_buffer {
             self.i = (self.i + 1) % KEY_SIZE_BYTES;
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
@@ -89,7 +87,7 @@ impl Rc4State {
     }
 
     fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
-        self.encrypt(input, output);  // RC4 is symmetric, so encryption and decryption are the same
+        self.encrypt(input, output);
     }
 }
 
@@ -112,7 +110,7 @@ mod rc4tests {
             output[i] = 'A' as u8;
             input[i] = 'A' as u8;
         }
-
+        assert_eq!(input,output);
         rc4.encrypt(&input, &mut output);
 
         for i in 0..output.len() {
