@@ -109,7 +109,6 @@ mod rc4tests {
         let mut input = [0; 256];
         let mut output = [0; 256];
         /// Set them both just so we can ensure they are not the same after
-        ///
         for i in 0..input.len() {
             if (i % 2 == 0) {
                 input[i] = 'B' as u8;
@@ -122,10 +121,6 @@ mod rc4tests {
         assert_eq!(input, output);
         rc4.encrypt(&input, &mut output);
 
-        for i in 0..output.len() {
-            print!("output {} : input {}\n", output[i], input[i]);
-        }
-
         assert_ne!(input, output);
     }
 
@@ -134,7 +129,6 @@ mod rc4tests {
         let mut rc4 = Rc4State::new();
         let mut input = [0; KEY_SIZE_BYTES];
         let mut output = [0; KEY_SIZE_BYTES];
-
 
         for i in 0..input.len() {
             if i % 2 == 0 {
@@ -147,13 +141,6 @@ mod rc4tests {
         let original_input = input.clone();
         rc4.encrypt(&input, &mut output);
         rc4.decrypt(&output, &mut input);
-
-        for i in 0..output.len() {
-            print!(
-                "i {} original {} : input {}\n",
-                i, original_input[i], input[i]
-            );
-        }
 
         assert_eq!(input, original_input);
     }
