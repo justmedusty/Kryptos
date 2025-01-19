@@ -68,6 +68,7 @@ impl Rc4State {
     /// prga (pseudo-random generator algorithm) sets up the final keystream buffer with pseudo random bytes derived from the initial keystream generated in key_scheduling
     fn prga(&mut self, output_buffer: &mut [u8]) {
         self.key_scheduling();
+        print!("Key stream :");
         for byte in output_buffer {
             self.i = (self.i + 1) % KEY_SIZE_BYTES;
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
