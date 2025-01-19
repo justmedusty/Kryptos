@@ -72,6 +72,14 @@ impl Rc4State {
             self.i = (self.i + 1) % KEY_SIZE_BYTES;
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
             self.s.swap(self.i, self.j);
+            /*
+                We add some extra mixing, whether this actually adds anything tangible to our result probably not but why not. It's not like this is a serious application of an RC4 variant
+             */
+            self.i = (self.j * self.s[(self.i * self.j) % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
+            self.j = (self.i * self.s[(self.i * self.j) % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
+
+            self.s.swap(self.i, self.j);
+
             let k = self.s[(self.s[self.i] as usize + self.s[self.j] as usize) % KEY_SIZE_BYTES];
             *byte = k;
             print!("{:02x}", byte);
@@ -83,7 +91,7 @@ impl Rc4State {
     pub fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
         let mut keystream = vec![0u8; input.len()];
 
-        if (output.len() < input.len()) {
+        if output.len() < input.len() {
             println!("RC4 encrypt: output buffer too short");
             return;
         }

@@ -4,7 +4,7 @@ use rand::Rng;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::ops::{Add, DerefMut};
+use std::ops::{DerefMut};
 use std::sync::{Arc, RwLock};
 use telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION};
 
@@ -62,12 +62,12 @@ Sets up the connection with the username provided and inserts it into the connec
 */
 fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let mut greeted = false;
-    let mut username: String = "".to_string();
+    let username: String;
 
     loop {
         let mut conn = connection.write().unwrap();
         if !greeted {
-            conn.fill_write_buffer(Vec::from(GREETING.clone().trim().as_bytes()));
+            conn.fill_write_buffer(Vec::from(GREETING.trim().as_bytes()));
             conn.write_to_connection();
         }
 
@@ -86,7 +86,7 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 
         if length > 4 && length < 25 {
             println!("New connection: {}", name);
-            conn.fill_write_buffer(Vec::from(SUCCESS_STRING.clone()));
+            conn.fill_write_buffer(Vec::from(SUCCESS_STRING));
             conn.write_to_connection();
             let mut name = name.clone();
             name.truncate(length);
@@ -95,7 +95,7 @@ fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
             break;
         }
 
-        conn.fill_write_buffer(Vec::from(INVALID_NAME.clone()));
+        conn.fill_write_buffer(Vec::from(INVALID_NAME));
         conn.write_to_connection();
     }
     /*
@@ -188,7 +188,7 @@ fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
 }
 /*
 This function is just for testing purposes
-*/
+*/#[allow(dead_code)]
 fn spawn_connect_thread() {
     std::thread::spawn(move || loop {
         println!("Starting client thread");

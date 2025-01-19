@@ -1,16 +1,16 @@
-
 #[cfg(test)]
 mod rc4tests {
     use crate::cryptography::{Rc4State, KEY_SIZE_BYTES};
-    use super::*;
+
+    ///This test just ensures that the encryption function does in fact encrypt the plaintext input
     #[test]
     fn test_encryption() {
         let mut rc4 = Rc4State::new();
         let mut input = [0; 256];
         let mut output = [0; 256];
-        /// Set them both just so we can ensure they are not the same after
+
         for i in 0..input.len() {
-            if (i % 2 == 0) {
+            if i % 2 == 0 {
                 input[i] = 'B' as u8;
                 output[i] = 'B' as u8;
                 continue;
@@ -24,6 +24,7 @@ mod rc4tests {
         assert_ne!(input, output);
     }
 
+    //This test just ensures that the decryption function actually decrypts , and brings back the original plaintext message
     #[test]
     fn test_decryption() {
         let mut rc4 = Rc4State::new();
