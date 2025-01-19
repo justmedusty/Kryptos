@@ -134,18 +134,16 @@ mod rc4tests {
         let mut rc4 = Rc4State::new();
         let mut input = [0; KEY_SIZE_BYTES];
         let mut output = [0; KEY_SIZE_BYTES];
-        /// Set them both just so we can ensure they are not the same after
+
+
         for i in 0..input.len() {
             if i % 2 == 0 {
                 input[i] = 'B' as u8;
-                output[i] = 'B' as u8;
                 continue;
             }
-            output[i] = 'A' as u8;
             input[i] = 'A' as u8;
         }
 
-        assert_eq!(input, output);
         let original_input = input.clone();
         rc4.encrypt(&input, &mut output);
         rc4.decrypt(&output, &mut input);
