@@ -1,6 +1,6 @@
 A simple rust telnet chat server.
 
-Takes usernames on entry and broadcastrs join and leave messages with the users given name.
+Takes usernames on entry and broadcasts join and leave messages with the users given name.
 
 All messages are prepended with the users name to make a busy chatroom readable.
 
