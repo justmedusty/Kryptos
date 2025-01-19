@@ -1,16 +1,16 @@
-use crate::telnet::{
-    open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION,
-};
-use rand::{Rng};
+
+use rand::distr::Alphanumeric;
+use rand::Rng;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::ops::{Add, DerefMut};
 use std::sync::{Arc, RwLock};
-use rand::distr::Alphanumeric;
+use telnet::{open_telnet_connection, ServerFunctions, TelnetServerConnection, VALID_CONNECTION};
 
 mod telnet;
 mod cryptography;
+mod tests;
 
 static PORT: u64 = 6969;
 

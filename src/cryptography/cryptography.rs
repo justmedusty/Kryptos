@@ -1,15 +1,15 @@
 use rand::RngCore;
 
-const KEY_SIZE_BYTES: usize = 256;
+pub const KEY_SIZE_BYTES: usize = 256;
 
-struct Rc4State {
+pub struct Rc4State {
     s: [u8; KEY_SIZE_BYTES],
     i: usize,
     j: usize,
     key: Rc4Key,
 }
 
-struct Rc4Key {
+pub struct Rc4Key {
     key: [u8; KEY_SIZE_BYTES],
 }
 
@@ -21,7 +21,7 @@ impl Rc4Key {
 
 impl Rc4State {
     /// Creates a new Rc4State object with a randomly generated key and default values for the s array, i, j
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut new = Self {
             s: [0; KEY_SIZE_BYTES],
             i: 0,
@@ -33,19 +33,19 @@ impl Rc4State {
         new
     }
 
-    fn initialize(&mut self) {
+    pub fn initialize(&mut self) {
         self.generate_key();
     }
 
     /// Generates a key for your Rc4State object, this is called automatically on invocation of ::new however you can call it again if you wish to regenerate a new key
     /// The key is of size 256 bytes (4096 bits)
-    fn generate_key(&mut self) {
+    pub fn generate_key(&mut self) {
         let mut key = [0u8; KEY_SIZE_BYTES];
         rand::rng().fill_bytes(&mut key); // Fixed to use a random generator
         self.key = Rc4Key::new(key);
     }
 
-    /// key_scheduling sets up the S array (key stream) with initial values getting ready to begin the encryption process.
+    /// key_scheduling sets up the S array (initial key stream) with initial values getting ready to begin the encryption process.
     fn key_scheduling(&mut self) {
         let key = &self.key.key;
 
@@ -65,7 +65,7 @@ impl Rc4State {
         self.j = 0;
     }
 
-    /// prga (pseudo-random generator algorithm) sets up the keystream buffer with pseudo random bytes derived from the initial keystream
+    /// prga (pseudo-random generator algorithm) sets up the final keystream buffer with pseudo random bytes derived from the initial keystream generated in key_scheduling
     fn prga(&mut self, output_buffer: &mut [u8]) {
         self.key_scheduling();
         for byte in output_buffer {
@@ -80,7 +80,7 @@ impl Rc4State {
         println!();
     }
 
-    fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
+    pub fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
         let mut keystream = vec![0u8; input.len()];
 
         if (output.len() < input.len()) {
@@ -95,53 +95,7 @@ impl Rc4State {
         }
     }
 
-    fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
+    pub fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
         self.encrypt(input, output);
-    }
-}
-
-#[cfg(test)]
-mod rc4tests {
-    use super::*;
-    #[test]
-    fn test_encryption() {
-        let mut rc4 = Rc4State::new();
-        let mut input = [0; 256];
-        let mut output = [0; 256];
-        /// Set them both just so we can ensure they are not the same after
-        for i in 0..input.len() {
-            if (i % 2 == 0) {
-                input[i] = 'B' as u8;
-                output[i] = 'B' as u8;
-                continue;
-            }
-            output[i] = 'A' as u8;
-            input[i] = 'A' as u8;
-        }
-        assert_eq!(input, output);
-        rc4.encrypt(&input, &mut output);
-
-        assert_ne!(input, output);
-    }
-
-    #[test]
-    fn test_decryption() {
-        let mut rc4 = Rc4State::new();
-        let mut input = [0; KEY_SIZE_BYTES];
-        let mut output = [0; KEY_SIZE_BYTES];
-
-        for i in 0..input.len() {
-            if i % 2 == 0 {
-                input[i] = 'B' as u8;
-                continue;
-            }
-            input[i] = 'A' as u8;
-        }
-
-        let original_input = input.clone();
-        rc4.encrypt(&input, &mut output);
-        rc4.decrypt(&output, &mut input);
-
-        assert_eq!(input, original_input);
     }
 }
