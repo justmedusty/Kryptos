@@ -1,5 +1,6 @@
+use crate::cryptography::Rc4State;
+use crate::{GREETING, INVALID_NAME, PORT, SUCCESS_STRING};
 use std::collections::VecDeque;
-use crate::{ GREETING, INVALID_NAME, PORT, SUCCESS_STRING};
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
@@ -18,6 +19,7 @@ pub struct TelnetServerConnection {
     pub read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
     pub name: String,
+    rc4state: Rc4State,
     log: bool,
     log_file: Option<File>,
 }
@@ -25,6 +27,24 @@ pub struct TelnetServerConnection {
 impl PartialEq<Self> for TelnetServerConnection {
     fn eq(&self, other: &Self) -> bool {
         self.connection_id == other.connection_id
+    }
+}
+
+impl TelnetServerConnection {
+    pub fn new(socket: SocketAddr, connection_id: u64, stream: TcpStream) -> Self {
+        let new_connection: TelnetServerConnection = TelnetServerConnection {
+            socket_addr: socket,
+            connection_id,
+            stream,
+            read_buffer: vec![0; 4096],
+            write_buffer: vec![0; 4096],
+            name: "".to_string(),
+            rc4state: Rc4State::new(),
+            log: false,
+            log_file: None,
+        };
+
+        new_connection
     }
 }
 
@@ -73,11 +93,15 @@ macro_rules! write_to_log {
     };
 }
 impl ServerFunctions for TelnetServerConnection {
+    // Handle encryption in the write functions with the internal rc4 mechanism
+    // Also handle the decryption in the read
     fn read_from_connection(&mut self) -> usize {
         if let Err(_) = self.stream.set_nonblocking(true) {
             return 0;
         }
-        let ret = match self.stream.read(&mut self.read_buffer) {
+        let mut encrypted_buffer = vec![0; 4096];
+
+        let ret = match self.stream.read(&mut encrypted_buffer) {
             Ok(0) => {
                 return 0;
             }
@@ -96,18 +120,26 @@ impl ServerFunctions for TelnetServerConnection {
             }
         };
 
+        self.rc4state
+            .decrypt(&encrypted_buffer, &mut self.read_buffer);
+
         write_to_log!(self);
         ret
     }
 
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
-        match self.stream.write_all(buffer.as_ref()) {
+        let mut encrypted_buffer = buffer.clone();
+        self.rc4state.encrypt(buffer, &mut encrypted_buffer);
+        match self.stream.write_all(encrypted_buffer.as_ref()) {
             Ok(x) => x,
             Err(_) => return,
         };
     }
 
     fn write_to_connection(&mut self) {
+        let mut encrypted_buffer = self.write_buffer.clone();
+        self.rc4state
+            .encrypt(&self.write_buffer, &mut encrypted_buffer);
         match self.stream.write_all(&self.write_buffer) {
             Ok(x) => x,
             Err(_) => return,
@@ -227,6 +259,7 @@ pub fn open_telnet_connection(
         read_buffer: read_buff,
         write_buffer: write_buff,
         name: "".to_string(),
+        rc4state: Rc4State::new(),
         log: false,
         log_file: None,
     };
@@ -321,8 +354,6 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     broadcast_message(&message_vec, count as u64, &pool);
     return;
 }
-
-
 
 /*
    Main server loop, socket is nonblocking so that it will not stay blocked while inside a locked context (this would break the broadcast function) , broadcasts on leave so others are alerted

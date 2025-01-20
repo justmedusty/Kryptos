@@ -2,6 +2,7 @@ use rand::RngCore;
 
 pub const KEY_SIZE_BYTES: usize = 256;
 
+#[derive(Debug)]
 pub struct Rc4State {
     s: [u8; KEY_SIZE_BYTES],
     i: usize,
@@ -9,6 +10,7 @@ pub struct Rc4State {
     key: Rc4Key,
 }
 
+#[derive(Debug)]
 pub struct Rc4Key {
     key: [u8; KEY_SIZE_BYTES],
 }
@@ -68,7 +70,6 @@ impl Rc4State {
     /// prga (pseudo-random generator algorithm) sets up the final keystream buffer with pseudo random bytes derived from the initial keystream generated in key_scheduling
     fn prga(&mut self, output_buffer: &mut [u8]) {
         self.key_scheduling();
-        print!("Key stream :");
         for byte in output_buffer {
             self.i = (self.i + 1) % KEY_SIZE_BYTES;
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
@@ -83,10 +84,8 @@ impl Rc4State {
 
             let k = self.s[(self.s[self.i] as usize + self.s[self.j] as usize) % KEY_SIZE_BYTES];
             *byte = k;
-            print!("{:02x}", byte);
         }
 
-        println!();
     }
 
     pub fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
