@@ -244,7 +244,7 @@ impl ServerFunctions for TelnetServerConnection {
 */
 pub fn open_telnet_connection(
     listener: Arc<RwLock<TcpListener>>,
-    conn_id: u64,
+    session_key: String,
 ) -> TelnetServerConnection {
     let listener = listener.read().unwrap();
     let (tcp_conn, sock_addr) = listener.accept().expect("Failed to accept connection");
@@ -252,8 +252,8 @@ pub fn open_telnet_connection(
     let read_buff = vec![0u8; 4096];
     let write_buff = vec![0u8; 4096];
 
-    let server_connection = TelnetServerConnection {
-        connection_id: conn_id,
+    let mut server_connection = TelnetServerConnection {
+        connection_id: 0,
         stream: tcp_conn,
         socket_addr: sock_addr,
         read_buffer: read_buff,
@@ -263,6 +263,8 @@ pub fn open_telnet_connection(
         log: false,
         log_file: None,
     };
+
+    server_connection.rc4state.set_key(session_key.as_bytes());
 
     server_connection
 }

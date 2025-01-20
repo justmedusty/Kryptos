@@ -75,17 +75,31 @@ impl Rc4State {
             self.j = (self.j + self.s[self.i] as usize) % KEY_SIZE_BYTES;
             self.s.swap(self.i, self.j);
             /*
-                We add some extra mixing, whether this actually adds anything tangible to our result probably not but why not. It's not like this is a serious application of an RC4 variant
-             */
-            self.i = (self.j * self.s[(self.i * self.j) % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
-            self.j = (self.i * self.s[(self.i * self.j) % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
+               We add some extra mixing, whether this actually adds anything tangible to our result probably not but why not. It's not like this is a serious application of an RC4 variant
+            */
+            self.i =
+                (self.j * self.s[(self.i * self.j) % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
+            self.j =
+                (self.i * self.s[(self.i * self.j) % KEY_SIZE_BYTES] as usize) % KEY_SIZE_BYTES;
 
             self.s.swap(self.i, self.j);
 
             let k = self.s[(self.s[self.i] as usize + self.s[self.j] as usize) % KEY_SIZE_BYTES];
             *byte = k;
         }
+    }
 
+    pub fn set_key(&mut self, key: &[u8]) {
+
+        if key.len() != KEY_SIZE_BYTES {
+            println!("Key size is not correct! Expected {KEY_SIZE_BYTES}");
+            return;
+        }
+
+        self.key.key = match key.try_into() {
+            Ok(x) => x,
+            Err(_) => self.key.key,
+        };
     }
 
     pub fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {

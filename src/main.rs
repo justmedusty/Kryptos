@@ -1,12 +1,15 @@
+use crate::cryptography::KEY_SIZE_BYTES;
 use crate::telnet::{spawn_server_thread, ConnectionPool};
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::ops::DerefMut;
+use std::ops::{Add, DerefMut};
 use std::sync::{Arc, RwLock};
 use telnet::{open_telnet_connection, ServerFunctions};
-
+/*
+   Declare submodules
+*/
 mod cryptography;
 mod telnet;
 mod tests;
@@ -22,7 +25,7 @@ const SUCCESS_STRING: &'static str = "Username is valid, joining session\n";
 */
 fn generate_session_token() -> String {
     // Generate a random alphanumeric string
-    let len = 64;
+    let len = KEY_SIZE_BYTES;
     let random_string: String = rand::rng()
         .sample_iter(&Alphanumeric)
         .take(len)
@@ -47,7 +50,7 @@ fn main() {
     loop {
         let curr = Arc::clone(&reference);
 
-        let mut server_connection = open_telnet_connection(curr, 0 /* Placeholder value */);
+        let mut server_connection = open_telnet_connection(curr, session_token.clone());
 
         println!(
             "Accepted connection from {}",
