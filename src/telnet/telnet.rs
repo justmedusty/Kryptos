@@ -63,6 +63,8 @@ pub trait ServerFunctions {
     fn write_to_connection(&mut self);
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
+    fn get_read_buffer_size(&mut self) -> usize;
+    fn get_write_buffer_size(&mut self) -> usize;
 
     fn flush_read_buffer(&mut self);
     fn flush_write_buffer(&mut self);
@@ -119,9 +121,10 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
-
         self.rc4state
             .decrypt(&encrypted_buffer, &mut self.read_buffer);
+
+        
 
         write_to_log!(self);
         ret
@@ -141,6 +144,8 @@ impl ServerFunctions for TelnetServerConnection {
 
         self.rc4state
             .encrypt(&self.write_buffer, &mut encrypted_buffer);
+        
+        encrypted_buffer.resize(self.get_write_buffer_size(), 0);
 
 
         match self.stream.write_all(encrypted_buffer.as_ref()) {
@@ -168,6 +173,14 @@ impl ServerFunctions for TelnetServerConnection {
         self.write_to_connection();
         self.flush_read_buffer();
         self.flush_write_buffer();
+    }
+
+    fn get_read_buffer_size(&mut self) -> usize {
+        self.read_buffer.iter().filter(|x| **x != 0).count()
+    }
+
+    fn get_write_buffer_size(&mut self) -> usize {
+        self.write_buffer.iter().filter(|x| **x != 0).count()
     }
 
     fn flush_read_buffer(&mut self) {

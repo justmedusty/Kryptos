@@ -96,8 +96,6 @@ impl Rc4State {
             return;
         }
 
-
-
         self.key.key = match key.try_into() {
             Ok(x) => x,
             Err(_) => self.key.key,
