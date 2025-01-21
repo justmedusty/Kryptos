@@ -138,9 +138,12 @@ impl ServerFunctions for TelnetServerConnection {
 
     fn write_to_connection(&mut self) {
         let mut encrypted_buffer = self.write_buffer.clone();
+
         self.rc4state
             .encrypt(&self.write_buffer, &mut encrypted_buffer);
-        match self.stream.write_all(&self.write_buffer) {
+
+
+        match self.stream.write_all(encrypted_buffer.as_ref()) {
             Ok(x) => x,
             Err(_) => return,
         };
@@ -294,7 +297,7 @@ pub fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) 
 Handle grabbing the username of the new connection, must be between 5 and 25 characters long
 Sets up the connection with the username provided and inserts it into the connection pool before returning into the main server thread loop
 */
-pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
+pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bool {
     let mut greeted = false;
     let username: String;
 
@@ -310,7 +313,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
         let length = conn.read_from_connection_blocking();
 
         if length == 0 {
-            return;
+            return false;
         }
 
         let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
@@ -322,7 +325,13 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
             println!("New connection: {}", name);
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING));
             conn.write_to_connection();
-            let mut name = name.clone();
+            let mut name = match String::from_utf8(conn.read_buffer.to_vec()) {
+                Ok(x) => x,
+                Err(_) => {
+                    println!("Connection could not be convered to UTF-8. Client likely using incorrect session key! Closing connection.");
+                    return false;
+                }
+            };
             name.truncate(length);
             conn.set_name(name);
             username = conn.name.clone();
@@ -354,7 +363,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let message = format!("{} has joined\n", username);
     let message_vec = message.into_bytes();
     broadcast_message(&message_vec, count as u64, &pool);
-    return;
+    true
 }
 
 /*
@@ -363,7 +372,9 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
     std::thread::spawn(move || loop {
         let (mut read_buffer, mut connection_id, mut val);
-        handle_new_connection(connection.clone(), pool.clone());
+        if handle_new_connection(connection.clone(), pool.clone()) == false {
+            return;
+        }
         loop {
             {
                 let mut conn = match connection.write() {

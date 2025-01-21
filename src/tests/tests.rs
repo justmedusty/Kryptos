@@ -41,8 +41,8 @@ mod rc4tests {
 
         let original_input = input.clone();
         rc4.encrypt(&input, &mut output);
+        assert_ne!(input, output);
         rc4.decrypt(&output, &mut input);
-
         assert_eq!(input, original_input);
     }
 }
