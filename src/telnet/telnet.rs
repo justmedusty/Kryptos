@@ -238,6 +238,7 @@ impl ServerFunctions for TelnetServerConnection {
         if let Err(_) = self.stream.set_nonblocking(false) {
             return 0;
         }
+
         let ret = match self.stream.read(&mut self.read_buffer) {
             Ok(0) => 0,
             Ok(x) => x,
@@ -250,8 +251,10 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
-
+        let mut encrypted_buffer = self.read_buffer.clone();
+        self.rc4state.decrypt(&encrypted_buffer, &mut self.read_buffer);
         write_to_log!(self);
+
         ret
     }
 }
@@ -329,12 +332,14 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
             return false;
         }
 
-        let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
+
+        let mut name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
             .trim()
             .to_string();
         conn.flush_read_buffer();
 
         if length > 4 && length < 25 {
+            name.truncate(length);
             println!("New connection: {}", name);
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING));
             conn.write_to_connection();
@@ -345,7 +350,6 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
                     return false;
                 }
             };
-            name.truncate(length);
             conn.set_name(name);
             username = conn.name.clone();
             break;
