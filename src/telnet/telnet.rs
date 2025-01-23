@@ -123,6 +123,10 @@ impl ServerFunctions for TelnetServerConnection {
         self.rc4state
             .decrypt(&encrypted_buffer, &mut self.read_buffer);
 
+        for byte in encrypted_buffer {
+            print!("{}", byte as char);
+        }
+
         write_to_log!(self);
         ret
     }
@@ -140,7 +144,7 @@ impl ServerFunctions for TelnetServerConnection {
         let mut encrypted_buffer = self.write_buffer.clone();
         self.rc4state
             .encrypt(&self.write_buffer, &mut encrypted_buffer);
-        match self.stream.write_all(&self.write_buffer) {
+        match self.stream.write_all(&encrypted_buffer) {
             Ok(x) => x,
             Err(_) => return,
         };
@@ -174,7 +178,7 @@ impl ServerFunctions for TelnetServerConnection {
     }
 
     fn flush_write_buffer(&mut self) {
-        for x in &mut self.write_buffer {
+        for mut x in &mut self.write_buffer {
             *x = 0;
         }
     }
@@ -222,7 +226,9 @@ impl ServerFunctions for TelnetServerConnection {
         if let Err(_) = self.stream.set_nonblocking(false) {
             return 0;
         }
-        let ret = match self.stream.read(&mut self.read_buffer) {
+
+        let mut encrypted_buffer = vec![0; 4096];
+        let ret = match self.stream.read(&mut encrypted_buffer) {
             Ok(0) => 0,
             Ok(x) => x,
             Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => {
@@ -234,6 +240,8 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
+
+        self.rc4state.decrypt(&encrypted_buffer, &mut self.read_buffer);
 
         write_to_log!(self);
         ret
@@ -302,7 +310,9 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
         let mut conn = connection.write().unwrap();
         if !greeted {
             conn.fill_write_buffer(Vec::from(GREETING.trim().as_bytes()));
+            conn.write_buffer.resize(GREETING.len(),0);
             conn.write_to_connection();
+            conn.write_buffer.resize(4096,0);
         }
 
         greeted = true;
@@ -320,8 +330,11 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 
         if length > 4 && length < 25 {
             println!("New connection: {}", name);
+
             conn.fill_write_buffer(Vec::from(SUCCESS_STRING));
+            conn.write_buffer.resize(SUCCESS_STRING.len(),0);
             conn.write_to_connection();
+            conn.write_buffer.resize(4096,0);
             let mut name = name.clone();
             name.truncate(length);
             conn.set_name(name);
