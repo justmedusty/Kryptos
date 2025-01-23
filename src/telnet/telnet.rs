@@ -123,10 +123,6 @@ impl ServerFunctions for TelnetServerConnection {
         self.rc4state
             .decrypt(&encrypted_buffer, &mut self.read_buffer);
 
-        for byte in encrypted_buffer {
-            print!("{}", byte as char);
-        }
-
         write_to_log!(self);
         ret
     }
@@ -134,7 +130,7 @@ impl ServerFunctions for TelnetServerConnection {
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
         let mut encrypted_buffer = buffer.clone();
         self.rc4state.encrypt(buffer, &mut encrypted_buffer);
-        match self.stream.write_all(encrypted_buffer.as_ref()) {
+        match self.stream.write_all(&encrypted_buffer) {
             Ok(x) => x,
             Err(_) => return,
         };
@@ -241,7 +237,8 @@ impl ServerFunctions for TelnetServerConnection {
             }
         };
 
-        self.rc4state.decrypt(&encrypted_buffer, &mut self.read_buffer);
+        self.rc4state
+            .decrypt(&encrypted_buffer, &mut self.read_buffer);
 
         write_to_log!(self);
         ret
@@ -309,10 +306,8 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     loop {
         let mut conn = connection.write().unwrap();
         if !greeted {
-            conn.fill_write_buffer(Vec::from(GREETING.trim().as_bytes()));
-            conn.write_buffer.resize(GREETING.len(),0);
+            conn.fill_write_buffer(Vec::from(GREETING.as_bytes()));
             conn.write_to_connection();
-            conn.write_buffer.resize(4096,0);
         }
 
         greeted = true;
@@ -329,20 +324,19 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
         conn.flush_read_buffer();
 
         if length > 4 && length < 25 {
-            println!("New connection: {}", name);
-
-            conn.fill_write_buffer(Vec::from(SUCCESS_STRING));
-            conn.write_buffer.resize(SUCCESS_STRING.len(),0);
-            conn.write_to_connection();
-            conn.write_buffer.resize(4096,0);
             let mut name = name.clone();
             name.truncate(length);
+            println!("New connection: {}", name);
+
+            conn.fill_write_buffer(Vec::from(SUCCESS_STRING.as_bytes()));
+            conn.write_to_connection();
+
             conn.set_name(name);
             username = conn.name.clone();
             break;
         }
 
-        conn.fill_write_buffer(Vec::from(INVALID_NAME));
+        conn.fill_write_buffer(Vec::from(INVALID_NAME.as_bytes()));
         conn.write_to_connection();
     }
     /*
@@ -439,6 +433,7 @@ This function is just for testing purposes
 */
 #[allow(dead_code)]
 pub fn spawn_connect_thread() {
+
     std::thread::spawn(move || loop {
         println!("Starting client thread");
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
