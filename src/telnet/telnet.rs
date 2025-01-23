@@ -306,8 +306,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     loop {
         let mut conn = connection.write().unwrap();
         if !greeted {
-            conn.fill_write_buffer(Vec::from(GREETING.as_bytes()));
-            conn.write_to_connection();
+            conn.write_from_passed_buffer(&GREETING.as_bytes().to_vec());
         }
 
         greeted = true;
@@ -328,16 +327,14 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
             name.truncate(length);
             println!("New connection: {}", name);
 
-            conn.fill_write_buffer(Vec::from(SUCCESS_STRING.as_bytes()));
-            conn.write_to_connection();
+            conn.write_from_passed_buffer(&SUCCESS_STRING.as_bytes().to_vec());
 
             conn.set_name(name);
             username = conn.name.clone();
             break;
         }
 
-        conn.fill_write_buffer(Vec::from(INVALID_NAME.as_bytes()));
-        conn.write_to_connection();
+        conn.write_from_passed_buffer(&INVALID_NAME.as_bytes().to_vec());
     }
     /*
        Once user has provided a valid username we will insert into the pool and broadcast a message to all other connected parties
@@ -433,7 +430,6 @@ This function is just for testing purposes
 */
 #[allow(dead_code)]
 pub fn spawn_connect_thread() {
-
     std::thread::spawn(move || loop {
         println!("Starting client thread");
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
