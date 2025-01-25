@@ -272,7 +272,7 @@ pub fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) 
 Handle grabbing the username of the new connection, must be between 5 and 25 characters long
 Sets up the connection with the username provided and inserts it into the connection pool before returning into the main server thread loop
 */
-pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
+pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bool {
     let mut greeted = false;
     let username: String;
 
@@ -286,8 +286,15 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 
         let length = conn.read_from_connection_blocking();
 
+        for byte in conn.read_buffer[..length].iter() {
+            if !(*byte).is_ascii() {
+                eprintln!("Connection {} on {} is sending invalid ascii, this likely means that they have the wrong session key! Closing connection.",conn.connection_id,conn.socket_addr);
+                return false;
+            }
+        }
+
         if length == 0 {
-            return;
+            return false;
         }
 
         let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
@@ -331,7 +338,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
     let message = format!("{} has joined\n", username);
     let message_vec = message.into_bytes();
     broadcast_message(&message_vec, count as u64, &pool);
-    return;
+    true
 }
 
 /*
@@ -340,58 +347,62 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) {
 pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
     std::thread::spawn(move || loop {
         let (mut read_buffer, mut connection_id, mut val);
-        handle_new_connection(connection.clone(), pool.clone());
+        let result = handle_new_connection(connection.clone(), pool.clone());
+
+        if (!result) {
+            return;
+        }
+
         loop {
-            {
-                let mut conn = match connection.write() {
-                    Ok(x) => x,
-                    Err(_) => break,
-                };
+            let mut conn = match connection.write() {
+                Ok(x) => x,
+                Err(_) => break,
+            };
 
-                connection_id = conn.connection_id;
-                val = conn.read_from_connection();
+            connection_id = conn.connection_id;
+            val = conn.read_from_connection();
 
-                if val > 0 && val != VALID_CONNECTION as usize {
-                    read_buffer = conn.read_buffer.clone();
-                    read_buffer.resize(val, 0);
-                    let mut prefix = conn.name.clone().into_bytes();
-                    prefix.push(b':');
-                    prefix.push(b' ');
-                    prefix.extend_from_slice(&read_buffer);
-                    prefix.push(b'\n');
-                    read_buffer = prefix;
-                } else if val == VALID_CONNECTION as usize {
-                    continue;
-                } else if val == 0 {
-                    break;
-                } else {
-                    continue;
-                }
+            if val > 0 && val != VALID_CONNECTION as usize {
+                read_buffer = conn.read_buffer.clone();
+                read_buffer.resize(val, 0);
+                let mut prefix = conn.name.clone().into_bytes();
+                prefix.push(b':');
+                prefix.push(b' ');
+                prefix.extend_from_slice(&read_buffer);
+                prefix.push(b'\n');
+                read_buffer = prefix;
+            } else if val == VALID_CONNECTION as usize {
+                continue;
+            } else if val == 0 {
+                break;
+            } else {
+                continue;
             }
+            drop(conn);
+
             broadcast_message(&read_buffer, connection_id, &pool);
 
-            {
-                let mut conn = match connection.write() {
-                    Ok(x) => x,
-                    Err(_) => break,
-                };
-                conn.flush_read_buffer();
-            }
+            let mut conn = match connection.write() {
+                Ok(x) => x,
+                Err(_) => break,
+            };
+            conn.flush_read_buffer();
+            drop(conn);
         }
         let conn_id;
         let name;
-        {
-            let conn = connection.read().unwrap();
-            conn_id = conn.connection_id;
-            name = conn.name.clone();
-        }
+
+        let conn = connection.read().unwrap();
+        conn_id = conn.connection_id;
+        name = conn.name.clone();
+        drop(conn);
 
         println!("Connection {} closed", conn_id);
 
-        {
-            let mut pool = pool.write().unwrap();
-            pool.remove(conn_id as usize);
-        }
+        let mut pool_unlocked = pool.write().unwrap();
+        pool_unlocked.remove(conn_id as usize);
+        drop(pool_unlocked);
+
         let message = format!("{} has left\n", name);
         let message_vec = message.into_bytes();
         broadcast_message(&message_vec, conn_id, &pool);
