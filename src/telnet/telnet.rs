@@ -11,6 +11,7 @@ use std::sync::{Arc, RwLock};
 pub type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 pub type Connection = Arc<RwLock<TelnetServerConnection>>;
 pub static VALID_CONNECTION: u64 = 0xFFFFFFFFFFFF;
+
 #[derive(Debug)]
 pub struct TelnetServerConnection {
     socket_addr: SocketAddr,
@@ -60,14 +61,10 @@ pub fn print_vec(buffer: &[u8]) {
 pub trait ServerFunctions {
     fn read_from_connection(&mut self) -> usize;
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>);
-    fn write_to_connection(&mut self);
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
 
     fn flush_read_buffer(&mut self);
-    fn flush_write_buffer(&mut self);
-
-    fn fill_write_buffer(&mut self, buffer: Vec<u8>);
 
     fn read_and_print(&mut self);
 
@@ -136,24 +133,12 @@ impl ServerFunctions for TelnetServerConnection {
         };
     }
 
-    fn write_to_connection(&mut self) {
-        let mut encrypted_buffer = self.write_buffer.clone();
-        self.rc4state
-            .encrypt(&self.write_buffer, &mut encrypted_buffer);
-        match self.stream.write_all(&encrypted_buffer) {
-            Ok(x) => x,
-            Err(_) => return,
-        };
-        self.flush_write_buffer();
-    }
-
     fn fetch_address(&mut self) -> SocketAddr {
         self.socket_addr
     }
 
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>) {
         self.flush_read_buffer();
-        self.flush_write_buffer();
 
         if !message.is_some() {
             self.stream.shutdown(Shutdown::Both).unwrap();
@@ -161,26 +146,14 @@ impl ServerFunctions for TelnetServerConnection {
         }
 
         let message = message.unwrap();
-        self.write_buffer.append(&mut message.into_bytes());
-        self.write_to_connection();
+        self.write_from_passed_buffer(&message.as_bytes().to_vec());
         self.flush_read_buffer();
-        self.flush_write_buffer();
     }
 
     fn flush_read_buffer(&mut self) {
         for x in &mut self.read_buffer {
             *x = 0;
         }
-    }
-
-    fn flush_write_buffer(&mut self) {
-        for mut x in &mut self.write_buffer {
-            *x = 0;
-        }
-    }
-
-    fn fill_write_buffer(&mut self, mut buffer: Vec<u8>) {
-        self.write_buffer.append(&mut buffer);
     }
 
     fn read_and_print(&mut self) {
