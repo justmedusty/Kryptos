@@ -10,7 +10,7 @@ use std::sync::{Arc, RwLock};
 
 pub type ConnectionPool = Arc<RwLock<VecDeque<Connection>>>;
 pub type Connection = Arc<RwLock<TelnetServerConnection>>;
-pub static VALID_CONNECTION: u64 = 0xFFFFFFFFFFFF;
+pub const VALID_CONNECTION: u64 = 0xFFFFFFFFFFFF;
 
 #[derive(Debug)]
 pub struct TelnetServerConnection {
