@@ -1,4 +1,4 @@
-use crate::cryptography::KEY_SIZE_BYTES;
+use crate::cryptography::rc4::KEY_SIZE_BYTES;
 use crate::telnet::{spawn_server_thread, ConnectionPool};
 use rand::distr::Alphanumeric;
 use rand::Rng;

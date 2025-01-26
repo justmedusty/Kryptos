@@ -1,4 +1,5 @@
-use crate::cryptography::Rc4State;
+use crate::cryptography::cryptography::Encryption;
+use crate::cryptography::rc4::Rc4State;
 use crate::{GREETING, INVALID_NAME, PORT, SUCCESS_STRING};
 use std::collections::VecDeque;
 use std::fs::File;
