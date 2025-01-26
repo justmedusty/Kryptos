@@ -12,9 +12,16 @@ pub trait Encryption {
  the generic type everywhere
 */
 pub struct EncryptionContext {
+    /*
+        Remember that dynamic dispatch results in a run time hit
+        with vtable lookups, for this it is ok but it is important
+        to remember that
+     */
     pub(crate) context: Box<dyn Encryption>,
 }
-
+/*
+    This s required since the parent struct Telnet derives the debug trait
+ */
 impl fmt::Debug for EncryptionContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Custom debug logic, for example:
