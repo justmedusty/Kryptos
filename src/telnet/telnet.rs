@@ -1,4 +1,4 @@
-use crate::cryptography::cryptography::Encryption;
+use crate::cryptography::cryptography::{Encryption, EncryptionContext};
 use crate::cryptography::rc4::Rc4State;
 use crate::{GREETING, INVALID_NAME, PORT, SUCCESS_STRING};
 use std::collections::VecDeque;
@@ -21,7 +21,7 @@ pub struct TelnetServerConnection {
     pub read_buffer: Vec<u8>,
     write_buffer: Vec<u8>,
     pub name: String,
-    rc4state: Rc4State,
+    encryption_context: EncryptionContext,
     log: bool,
     log_file: Option<File>,
 }
@@ -41,7 +41,7 @@ impl TelnetServerConnection {
             read_buffer: vec![0; 4096],
             write_buffer: vec![0; 4096],
             name: "".to_string(),
-            rc4state: Rc4State::new(),
+            encryption_context: EncryptionContext::new(Rc4State::new()),
             log: false,
             log_file: None,
         };
@@ -118,7 +118,8 @@ impl ServerFunctions for TelnetServerConnection {
             }
         };
 
-        self.rc4state
+        self.encryption_context
+            .context
             .decrypt(&encrypted_buffer, &mut self.read_buffer);
 
         write_to_log!(self);
@@ -127,7 +128,9 @@ impl ServerFunctions for TelnetServerConnection {
 
     fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
         let mut encrypted_buffer = buffer.clone();
-        self.rc4state.encrypt(buffer, &mut encrypted_buffer);
+        self.encryption_context
+            .context
+            .encrypt(buffer, &mut encrypted_buffer);
         match self.stream.write_all(&encrypted_buffer) {
             Ok(x) => x,
             Err(_) => return,
@@ -211,7 +214,8 @@ impl ServerFunctions for TelnetServerConnection {
             }
         };
 
-        self.rc4state
+        self.encryption_context
+            .context
             .decrypt(&encrypted_buffer, &mut self.read_buffer);
 
         write_to_log!(self);
@@ -238,12 +242,14 @@ pub fn open_telnet_connection(
         read_buffer: read_buff,
         write_buffer: write_buff,
         name: "".to_string(),
-        rc4state: Rc4State::new(),
+        encryption_context: EncryptionContext::new(Rc4State::new()),
         log: false,
         log_file: None,
     };
 
-    server_connection.rc4state.set_key(session_key.as_bytes());
+    server_connection
+        .encryption_context.context
+        .set_key(session_key.as_bytes());
 
     server_connection
 }
@@ -346,7 +352,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
    Main server loop, socket is nonblocking so that it will not stay blocked while inside a locked context (this would break the broadcast function) , broadcasts on leave so others are alerted
 */
 pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move ||loop {
         let (mut read_buffer, mut connection_id, mut val);
         let result = handle_new_connection(connection.clone(), pool.clone());
 

@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod rc4tests {
-    use crate::cryptography::{Rc4State, KEY_SIZE_BYTES};
+    use crate::cryptography::cryptography::Encryption;
+    use crate::cryptography::rc4::{Rc4State, KEY_SIZE_BYTES};
 
     ///This test just ensures that the encryption function does in fact encrypt the plaintext input
     #[test]
