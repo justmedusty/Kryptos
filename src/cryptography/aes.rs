@@ -1,3 +1,5 @@
+use std::cmp::PartialEq;
+
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
 const AES_KEY_LENGTH_BYTES_MAX: usize = 32;
 
@@ -86,49 +88,68 @@ fn multiply(x: u8, y: u8) -> u8 {
     // The multiplication follows the logic of the AES algorithm for multiplication in GF(2^8).
 }
 
-enum AES_MODE {
+enum AesMode {
     CBC, // Cipher block chaining
     ECB, //Codebook
     CTR, // Counter
 }
 
-enum AES_SIZE {
+enum AesSize {
     S128, // 128-bit key
     S192, // 192-bit key
     S256, //256-bit key
 }
 
 struct AESContext {
-    mode: AES_MODE,
-    size: AES_SIZE,
+    mode: AesMode,
+    size: AesSize,
     //We will just allocate the max bytes rather than have differing allocations
     //it's a small allocation so who cares
     key: [u8; AES_KEY_LENGTH_BYTES_MAX],
-    round_key: [u8; AES_KEY_LENGTH_BYTES_MAX],
+    round_key: [u8; 176],
     initialization_vector: [u8; AES_BLOCK_LENGTH_BYTES],
     state: AesState,
 }
 
+impl PartialEq<AesSize> for AesSize {
+    fn eq(&self, other: &AesSize) -> bool {
+        let my_size = match self {
+            AesSize::S256 => 256,
+            AesSize::S192 => 192,
+            AesSize::S128 => 128,
+        };
+
+        let other_size = match other {
+            AesSize::S256 => 256,
+            AesSize::S192 => 192,
+            AesSize::S128 => 128,
+        };
+        my_size == other_size
+    }
+}
+
 impl AESContext {
     fn add_round_key(&mut self, round: u8) {
-        let i: u8 = 0;
-        let j: u8 = 0;
-
         for i in 0..4 {
             for j in 0..4 {
-                self.state[j][i] ^=
-                    self.round_key[((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
+                self.state[j][i] ^= self.round_key
+                    [((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
             }
         }
     }
 
     fn sub_bytes(&mut self) {
-        let i: u8 = 0;
-        let j: u8 = 0;
-
         for i in 0..4 {
             for j in 0..4 {
                 self.state[j][i] = get_sbox_number(self.state[j][i]);
+            }
+        }
+    }
+
+    fn inverted_sub_bytes(&mut self) {
+        for i in 0..4 {
+            for j in 0..4 {
+                self.state[j][i] = get_sbox_inverted(self.state[j][i]);
             }
         }
     }
@@ -158,5 +179,147 @@ impl AESContext {
         self.state[3][3] = self.state[2][3];
         self.state[2][3] = self.state[1][3];
         self.state[1][3] = temp;
+    }
+
+    fn inv_shift_rows(&mut self) {
+        let mut temp: u8;
+
+        // Rotate first row 1 column to the right
+        temp = self.state[3][1];
+        self.state[3][1] = self.state[2][1];
+        self.state[2][1] = self.state[1][1];
+        self.state[1][1] = self.state[0][1];
+        self.state[0][1] = temp;
+
+        // Rotate second row 2 columns to the right
+        temp = self.state[0][2];
+        self.state[0][2] = self.state[2][2];
+        self.state[2][2] = temp;
+
+        temp = self.state[1][2];
+        self.state[1][2] = self.state[3][2];
+        self.state[3][2] = temp;
+
+        // Rotate third row 3 columns to the right
+        temp = self.state[0][3];
+        self.state[0][3] = self.state[1][3];
+        self.state[1][3] = self.state[2][3];
+        self.state[2][3] = self.state[3][3];
+        self.state[3][3] = temp;
+    }
+    fn inv_mix_columns(&mut self) {
+        let mut a: u8;
+        let mut b: u8;
+        let mut c: u8;
+        let mut d: u8;
+
+        for i in 0..4 {
+            a = self.state[i][0];
+            b = self.state[i][1];
+            c = self.state[i][2];
+            d = self.state[i][3];
+
+            self.state[i][0] =
+                multiply(a, 0x0e) ^ multiply(b, 0x0b) ^ multiply(c, 0x0d) ^ multiply(d, 0x09);
+            self.state[i][1] =
+                multiply(a, 0x09) ^ multiply(b, 0x0e) ^ multiply(c, 0x0b) ^ multiply(d, 0x0d);
+            self.state[i][2] =
+                multiply(a, 0x0d) ^ multiply(b, 0x09) ^ multiply(c, 0x0e) ^ multiply(d, 0x0b);
+            self.state[i][3] =
+                multiply(a, 0x0b) ^ multiply(b, 0x0d) ^ multiply(c, 0x09) ^ multiply(d, 0x0e);
+        }
+    }
+
+    fn mix_columns(&mut self) {
+        let mut t: u8;
+        let mut tmp: u8;
+        let mut tm: u8;
+
+        for i in 0..4 {
+            t = self.state[i][0];
+            tmp = self.state[i][0] ^ self.state[i][1] ^ self.state[i][2] ^ self.state[i][3];
+
+            tm = self.state[i][0] ^ self.state[i][1];
+            tm = x_time(tm);
+            self.state[i][0] ^= tm ^ tmp;
+
+            tm = self.state[i][1] ^ self.state[i][2];
+            tm = x_time(tm);
+            self.state[i][1] ^= tm ^ tmp;
+
+            tm = self.state[i][2] ^ self.state[i][3];
+            tm = x_time(tm);
+            self.state[i][2] ^= tm ^ tmp;
+
+            tm = self.state[i][3] ^ t;
+            tm = x_time(tm);
+            self.state[i][3] ^= tm ^ tmp;
+        }
+    }
+
+    fn key_expansion(&mut self) {
+        let mut temp_array: [u8; 4] = [0, 0, 0, 0]; // Used for the column/row operations
+        let num_words_in_key = match self.size {
+            AesSize::S128 => 4,
+            AesSize::S192 => 6,
+            AesSize::S256 => 8,
+        }; // Number of 32-bit words in the key
+        let num_columns = 4; // Number of columns (for AES)
+        let num_rounds = match self.size {
+            AesSize::S128 => 10,
+            AesSize::S192 => 12,
+            AesSize::S256 => 14,
+        }; // Number of rounds
+        let mut round_key = &mut self.round_key;
+
+        // The first round key is the key itself.
+        for i in 0..num_words_in_key {
+            round_key[i * 4] = self.key[i * 4];
+            round_key[i * 4 + 1] = self.key[i * 4 + 1];
+            round_key[i * 4 + 2] = self.key[i * 4 + 2];
+            round_key[i * 4 + 3] = self.key[i * 4 + 3];
+        }
+
+        // All other round keys are found from the previous round keys.
+        for i in num_words_in_key..num_columns * (num_rounds + 1) {
+            let k = (i - 1) * 4;
+            temp_array[0] = round_key[k];
+            temp_array[1] = round_key[k + 1];
+            temp_array[2] = round_key[k + 2];
+            temp_array[3] = round_key[k + 3];
+
+            if i % num_words_in_key == 0 {
+                // RotWord() function - shifts the 4 bytes in a word to the left
+                let tmp = temp_array[0];
+                temp_array[0] = temp_array[1];
+                temp_array[1] = temp_array[2];
+                temp_array[2] = temp_array[3];
+                temp_array[3] = tmp;
+
+                // SubWord() function - applies the S-box to each byte
+                temp_array[0] = get_sbox_number(temp_array[0]);
+                temp_array[1] = get_sbox_number(temp_array[1]);
+                temp_array[2] = get_sbox_number(temp_array[2]);
+                temp_array[3] = get_sbox_number(temp_array[3]);
+
+                temp_array[0] ^= ROUND_CONSTANTS[i / num_words_in_key];
+            }
+            if self.size == AesSize::S256 {
+                // For AES256
+                if i % num_words_in_key == 4 {
+                    // SubWord() function for AES256
+                    temp_array[0] = get_sbox_number(temp_array[0]);
+                    temp_array[1] = get_sbox_number(temp_array[1]);
+                    temp_array[2] = get_sbox_number(temp_array[2]);
+                    temp_array[3] = get_sbox_number(temp_array[3]);
+                }
+            }
+            let j = i * 4;
+            let k = (i - num_words_in_key) * 4;
+            round_key[j] = round_key[k] ^ temp_array[0];
+            round_key[j + 1] = round_key[k + 1] ^ temp_array[1];
+            round_key[j + 2] = round_key[k + 2] ^ temp_array[2];
+            round_key[j + 3] = round_key[k + 3] ^ temp_array[3];
+        }
     }
 }
