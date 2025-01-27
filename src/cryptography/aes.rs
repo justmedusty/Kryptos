@@ -1,7 +1,7 @@
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
 const AES_KEY_LENGTH_BYTES_MAX: usize = 32;
 
-const NUM_COLUMNS: usize = 4;
+const NUM_COLUMNS: u8 = 4;
 
 type AesState = [[u8; 4]; 4];
 /*
@@ -52,29 +52,111 @@ Only the first some of these constants are actually used – up to rcon[10] for 
 const ROUND_CONSTANTS: [u8; 11] = [
     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36,
 ];
-enum Mode {
+
+fn get_sbox_number(num: u8) -> u8 {
+    SBOX[num as usize]
+}
+fn get_sbox_inverted(num: u8) -> u8 {
+    RSBOX[num as usize]
+}
+
+fn x_time(x: u8) -> u8 {
+    // Left shift x by 1 position (equivalent to multiplying by 2)
+    // The result will be in the 8-bit range, so we need to account for overflow.
+    let shifted = x << 1;
+
+    // If the leftmost bit of x is 1 (i.e., x >= 128), we must reduce the result
+    // by XORing it with the irreducible polynomial 0x1b (which represents the reduction modulo x^8 + x^4 + x^3 + x + 1).
+    let reduction = (x >> 7) & 1; // Extract the leftmost bit
+
+    // If the leftmost bit was 1, reduce the result by XORing with 0x1b
+    (shifted ^ (reduction * 0x1b))
+}
+
+fn multiply(x: u8, y: u8) -> u8 {
+    // This function performs multiplication in GF(2^8) (Galois Field) using XOR and the x_time function
+    return (((y & 1) * x) ^                               // If the least significant bit of y is 1, add x (no shift)
+        ((y >> 1 & 1) * x_time(x)) ^                   // If the second least significant bit of y is 1, add x_time(x) (shifted by 1)
+        ((y >> 2 & 1) * x_time(x_time(x))) ^           // If the third bit is 1, add x_time(x_time(x)) (shifted by 2)
+        ((y >> 3 & 1) * x_time(x_time(x_time(x)))) ^   // If the fourth bit is 1, add x_time(x_time(x_time(x))) (shifted by 3)
+        ((y >> 4 & 1) * x_time(x_time(x_time(x_time(x)))))); // If the fifth bit is 1, add x_time(x_time(x_time(x_time(x)))) (shifted by 4)
+
+    // In this process, we're using the binary representation of y to determine how many times
+    // to multiply x by powers of x in GF(2^8) (via x_time), and then XOR the results.
+    // The multiplication follows the logic of the AES algorithm for multiplication in GF(2^8).
+}
+
+enum AES_MODE {
     CBC, // Cipher block chaining
     ECB, //Codebook
     CTR, // Counter
 }
 
-enum Size {
+enum AES_SIZE {
     S128, // 128-bit key
     S192, // 192-bit key
     S256, //256-bit key
 }
 
 struct AESContext {
-    mode: Mode,
-    size: Size,
+    mode: AES_MODE,
+    size: AES_SIZE,
     //We will just allocate the max bytes rather than have differing allocations
     //it's a small allocation so who cares
+    key: [u8; AES_KEY_LENGTH_BYTES_MAX],
     round_key: [u8; AES_KEY_LENGTH_BYTES_MAX],
     initialization_vector: [u8; AES_BLOCK_LENGTH_BYTES],
+    state: AesState,
 }
 
 impl AESContext {
-    fn get_sbox_number(num: usize) -> u8 {
-        SBOX[num]
+    fn add_round_key(&mut self, round: u8) {
+        let i: u8 = 0;
+        let j: u8 = 0;
+
+        for i in 0..4 {
+            for j in 0..4 {
+                self.state[j][i] ^=
+                    self.round_key[((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
+            }
+        }
+    }
+
+    fn sub_bytes(&mut self) {
+        let i: u8 = 0;
+        let j: u8 = 0;
+
+        for i in 0..4 {
+            for j in 0..4 {
+                self.state[j][i] = get_sbox_number(self.state[j][i]);
+            }
+        }
+    }
+
+    fn shift_rows(&mut self) {
+        let mut temp: u8;
+
+        // Rotate first row 1 column to the left
+        temp = self.state[0][1];
+        self.state[0][1] = self.state[1][1];
+        self.state[1][1] = self.state[2][1];
+        self.state[2][1] = self.state[3][1];
+        self.state[3][1] = temp;
+
+        // Rotate second row 2 columns to the left
+        temp = self.state[0][2];
+        self.state[0][2] = self.state[2][2];
+        self.state[2][2] = temp;
+
+        temp = self.state[1][2];
+        self.state[1][2] = self.state[3][2];
+        self.state[3][2] = temp;
+
+        // Rotate third row 3 columns to the left
+        temp = self.state[0][3];
+        self.state[0][3] = self.state[3][3];
+        self.state[3][3] = self.state[2][3];
+        self.state[2][3] = self.state[1][3];
+        self.state[1][3] = temp;
     }
 }
