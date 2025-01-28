@@ -6,6 +6,7 @@ const AES_KEY_LENGTH_BYTES_MAX: usize = 32;
 const NUM_COLUMNS: u8 = 4;
 
 type AesState = [[u8; 4]; 4];
+
 /*
    Sbox and Rsbox as per the NIST standard
 */
@@ -337,10 +338,10 @@ impl AESContext {
     }
 
     /*
-        Main AES cipher function, walks through each round adding the round key and
-        mixing bytes. Uses the proper number of rounds based off the size of the
-        AES Context object.
-     */
+       Main AES cipher function, walks through each round adding the round key and
+       mixing bytes. Uses the proper number of rounds based off the size of the
+       AES Context object.
+    */
     fn cipher(&mut self, state: &mut AesState) {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
@@ -365,7 +366,6 @@ impl AESContext {
         self.add_round_key(num_rounds, state);
     }
 
-
     fn inverted_cipher(&mut self, state: &mut AesState) {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
@@ -373,12 +373,9 @@ impl AESContext {
             AesSize::S256 => 14,
         };
 
-
         self.add_round_key(num_rounds, state);
 
-
         self.add_round_key(0, state);
-
 
         for round in (num_rounds - 1)..0 {
             self.inv_shift_rows(state);
@@ -391,12 +388,41 @@ impl AESContext {
         }
     }
     /*
-        Xor single block in the buffer with the initialization vector stored
-        internally
-     */
+       Xor single block in the buffer with the initialization vector stored
+       internally
+    */
     fn xor_with_initialization_vector(&mut self, buffer: &mut [u8]) {
-        for i in 0..AES_BLOCK_LENGTH_BYTES{
+        for i in 0..AES_BLOCK_LENGTH_BYTES {
             buffer[i] ^= self.initialization_vector[i];
         }
+    }
+
+    fn ecb_encrypt(&mut self, buffer: &mut [u8]) {}
+
+    /*
+       I dont like this at all so this is just a pin for now
+       I will probably scrap this as it is a lot of overhead unnecessarily
+    */
+    fn buffer_into_2d_array(&mut self, buffer: &mut [u8]) -> AesState {
+        let mut state: AesState = [[0u8; 4]; 4];
+
+        for (i, chunk) in buffer.chunks(NUM_COLUMNS as usize).enumerate() {
+            for (j, &byte) in chunk.iter().enumerate() {
+                state[j][i] = byte;
+            }
+        }
+        state
+    }
+
+    fn state_into_buffer(&self, state: AesState) -> [u8; 16] {
+        let mut buffer = [0u8; 16];
+
+        for (i, column) in state.iter().enumerate() {
+            for (j, &byte) in column.iter().enumerate() {
+                buffer[i * NUM_COLUMNS as usize + j] = byte;
+            }
+        }
+
+        buffer
     }
 }
