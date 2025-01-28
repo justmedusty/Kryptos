@@ -96,14 +96,13 @@ fn multiply(x: u8, y: u8) -> u8 {
     THIS IS ONLY SAFE IF YOU ENSURE THE RETURNED OWNED VALUE IS DROPPED
     BEFORE BUFFER IS TOUCHED
 */
-fn as_2d_array(buffer: &mut [u8]) -> Box<AesState> {
+fn as_2d_array(buffer: &mut [u8]) -> AesState {
     assert_eq!(buffer.len(), 16, "Buffer must have exactly 16 elements!");
     let mut arr: AesState = [[0u8; 4]; 4];
     unsafe {
         arr = *&mut *(buffer.as_mut_ptr() as *mut AesState);
     }
-
-    Box::new(arr)
+    arr
 }
 
 enum AesMode {
@@ -364,8 +363,12 @@ impl AESContext {
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
-        let mut binding = as_2d_array(buffer);
-        let state = binding.as_mut();
+        /*
+            This function is only safe so long as buffer is not touched while this value
+            is alive
+         */
+        let mut ret = as_2d_array(buffer);
+        let state = &mut ret;
 
         self.add_round_key(0, state);
 
@@ -390,7 +393,7 @@ impl AESContext {
         };
 
         let mut ret = as_2d_array(buffer);
-        let state = ret.as_mut();
+        let state = &mut ret;
         self.add_round_key(num_rounds, state);
 
         self.add_round_key(0, state);
