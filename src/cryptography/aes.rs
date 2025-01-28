@@ -106,9 +106,8 @@ struct AESContext {
     //We will just allocate the max bytes rather than have differing allocations
     //it's a small allocation so who cares
     key: [u8; AES_KEY_LENGTH_BYTES_MAX],
-    round_key: [u8; 176],
+    round_keys: [u8; 256], //240 bytes holds all of the round keys with a 256 bit key
     initialization_vector: [u8; AES_BLOCK_LENGTH_BYTES],
-    state: AesState,
 }
 
 impl PartialEq<AesSize> for AesSize {
@@ -129,131 +128,131 @@ impl PartialEq<AesSize> for AesSize {
 }
 
 impl AESContext {
-    fn add_round_key(&mut self, round: u8) {
+    fn add_round_key(&mut self, round: u8, state: &mut AesState) {
         for i in 0..4 {
             for j in 0..4 {
-                self.state[j][i] ^= self.round_key
+                state[j][i] ^= self.round_keys
                     [((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
             }
         }
     }
 
-    fn sub_bytes(&mut self) {
+    fn sub_bytes(&mut self, state: &mut AesState) {
         for i in 0..4 {
             for j in 0..4 {
-                self.state[j][i] = get_sbox_number(self.state[j][i]);
+                state[j][i] = get_sbox_number(state[j][i]);
             }
         }
     }
 
-    fn inverted_sub_bytes(&mut self) {
+    fn inverted_sub_bytes(&mut self, state: &mut AesState) {
         for i in 0..4 {
             for j in 0..4 {
-                self.state[j][i] = get_sbox_inverted(self.state[j][i]);
+                state[j][i] = get_sbox_inverted(state[j][i]);
             }
         }
     }
 
-    fn shift_rows(&mut self) {
+    fn shift_rows(&mut self, state: &mut AesState) {
         let mut temp: u8;
 
         // Rotate first row 1 column to the left
-        temp = self.state[0][1];
-        self.state[0][1] = self.state[1][1];
-        self.state[1][1] = self.state[2][1];
-        self.state[2][1] = self.state[3][1];
-        self.state[3][1] = temp;
+        temp = state[0][1];
+        state[0][1] = state[1][1];
+        state[1][1] = state[2][1];
+        state[2][1] = state[3][1];
+        state[3][1] = temp;
 
         // Rotate second row 2 columns to the left
-        temp = self.state[0][2];
-        self.state[0][2] = self.state[2][2];
-        self.state[2][2] = temp;
+        temp = state[0][2];
+        state[0][2] = state[2][2];
+        state[2][2] = temp;
 
-        temp = self.state[1][2];
-        self.state[1][2] = self.state[3][2];
-        self.state[3][2] = temp;
+        temp = state[1][2];
+        state[1][2] = state[3][2];
+        state[3][2] = temp;
 
         // Rotate third row 3 columns to the left
-        temp = self.state[0][3];
-        self.state[0][3] = self.state[3][3];
-        self.state[3][3] = self.state[2][3];
-        self.state[2][3] = self.state[1][3];
-        self.state[1][3] = temp;
+        temp = state[0][3];
+        state[0][3] = state[3][3];
+        state[3][3] = state[2][3];
+        state[2][3] = state[1][3];
+        state[1][3] = temp;
     }
 
-    fn inv_shift_rows(&mut self) {
+    fn inv_shift_rows(&mut self, state: &mut AesState) {
         let mut temp: u8;
 
         // Rotate first row 1 column to the right
-        temp = self.state[3][1];
-        self.state[3][1] = self.state[2][1];
-        self.state[2][1] = self.state[1][1];
-        self.state[1][1] = self.state[0][1];
-        self.state[0][1] = temp;
+        temp = state[3][1];
+        state[3][1] = state[2][1];
+        state[2][1] = state[1][1];
+        state[1][1] = state[0][1];
+        state[0][1] = temp;
 
         // Rotate second row 2 columns to the right
-        temp = self.state[0][2];
-        self.state[0][2] = self.state[2][2];
-        self.state[2][2] = temp;
+        temp = state[0][2];
+        state[0][2] = state[2][2];
+        state[2][2] = temp;
 
-        temp = self.state[1][2];
-        self.state[1][2] = self.state[3][2];
-        self.state[3][2] = temp;
+        temp = state[1][2];
+        state[1][2] = state[3][2];
+        state[3][2] = temp;
 
         // Rotate third row 3 columns to the right
-        temp = self.state[0][3];
-        self.state[0][3] = self.state[1][3];
-        self.state[1][3] = self.state[2][3];
-        self.state[2][3] = self.state[3][3];
-        self.state[3][3] = temp;
+        temp = state[0][3];
+        state[0][3] = state[1][3];
+        state[1][3] = state[2][3];
+        state[2][3] = state[3][3];
+        state[3][3] = temp;
     }
-    fn inv_mix_columns(&mut self) {
+    fn inv_mix_columns(&mut self, state: &mut AesState) {
         let mut a: u8;
         let mut b: u8;
         let mut c: u8;
         let mut d: u8;
 
         for i in 0..4 {
-            a = self.state[i][0];
-            b = self.state[i][1];
-            c = self.state[i][2];
-            d = self.state[i][3];
+            a = state[i][0];
+            b = state[i][1];
+            c = state[i][2];
+            d = state[i][3];
 
-            self.state[i][0] =
+            state[i][0] =
                 multiply(a, 0x0e) ^ multiply(b, 0x0b) ^ multiply(c, 0x0d) ^ multiply(d, 0x09);
-            self.state[i][1] =
+            state[i][1] =
                 multiply(a, 0x09) ^ multiply(b, 0x0e) ^ multiply(c, 0x0b) ^ multiply(d, 0x0d);
-            self.state[i][2] =
+            state[i][2] =
                 multiply(a, 0x0d) ^ multiply(b, 0x09) ^ multiply(c, 0x0e) ^ multiply(d, 0x0b);
-            self.state[i][3] =
+            state[i][3] =
                 multiply(a, 0x0b) ^ multiply(b, 0x0d) ^ multiply(c, 0x09) ^ multiply(d, 0x0e);
         }
     }
 
-    fn mix_columns(&mut self) {
+    fn mix_columns(&mut self, state: &mut AesState) {
         let mut t: u8;
         let mut tmp: u8;
         let mut tm: u8;
 
         for i in 0..4 {
-            t = self.state[i][0];
-            tmp = self.state[i][0] ^ self.state[i][1] ^ self.state[i][2] ^ self.state[i][3];
+            t = state[i][0];
+            tmp = state[i][0] ^ state[i][1] ^ state[i][2] ^ state[i][3];
 
-            tm = self.state[i][0] ^ self.state[i][1];
+            tm = state[i][0] ^ state[i][1];
             tm = x_time(tm);
-            self.state[i][0] ^= tm ^ tmp;
+            state[i][0] ^= tm ^ tmp;
 
-            tm = self.state[i][1] ^ self.state[i][2];
+            tm = state[i][1] ^ state[i][2];
             tm = x_time(tm);
-            self.state[i][1] ^= tm ^ tmp;
+            state[i][1] ^= tm ^ tmp;
 
-            tm = self.state[i][2] ^ self.state[i][3];
+            tm = state[i][2] ^ state[i][3];
             tm = x_time(tm);
-            self.state[i][2] ^= tm ^ tmp;
+            state[i][2] ^= tm ^ tmp;
 
-            tm = self.state[i][3] ^ t;
+            tm = state[i][3] ^ t;
             tm = x_time(tm);
-            self.state[i][3] ^= tm ^ tmp;
+            state[i][3] ^= tm ^ tmp;
         }
     }
 
@@ -270,7 +269,7 @@ impl AESContext {
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         }; // Number of rounds
-        let mut round_key = &mut self.round_key;
+        let mut round_key = &mut self.round_keys;
 
         // The first round key is the key itself.
         for i in 0..num_words_in_key {
@@ -320,6 +319,84 @@ impl AESContext {
             round_key[j + 1] = round_key[k + 1] ^ temp_array[1];
             round_key[j + 2] = round_key[k + 2] ^ temp_array[2];
             round_key[j + 3] = round_key[k + 3] ^ temp_array[3];
+        }
+    }
+    fn initialize_context(&mut self) {
+        self.key_expansion();
+    }
+
+    fn initialize_initialization_vector(&mut self, iv: &[u8]) {
+        self.key_expansion();
+
+        for (i, byte) in iv.iter().enumerate() {
+            self.initialization_vector[i] = *byte;
+            if (i == AES_BLOCK_LENGTH_BYTES) {
+                break;
+            }
+        }
+    }
+
+    /*
+        Main AES cipher function, walks through each round adding the round key and
+        mixing bytes. Uses the proper number of rounds based off the size of the
+        AES Context object.
+     */
+    fn cipher(&mut self, state: &mut AesState) {
+        let num_rounds = match self.size {
+            AesSize::S128 => 10,
+            AesSize::S192 => 12,
+            AesSize::S256 => 14,
+        };
+
+        let round = 0;
+
+        self.add_round_key(0, state);
+
+        for round in 1..=num_rounds {
+            self.sub_bytes(state);
+            self.shift_rows(state);
+            if (round == num_rounds) {
+                break;
+            }
+            self.mix_columns(state);
+            self.add_round_key(round, state);
+        }
+
+        self.add_round_key(num_rounds, state);
+    }
+
+
+    fn inverted_cipher(&mut self, state: &mut AesState) {
+        let num_rounds = match self.size {
+            AesSize::S128 => 10,
+            AesSize::S192 => 12,
+            AesSize::S256 => 14,
+        };
+
+
+        self.add_round_key(num_rounds, state);
+
+
+        self.add_round_key(0, state);
+
+
+        for round in (num_rounds - 1)..0 {
+            self.inv_shift_rows(state);
+            self.inverted_sub_bytes(state);
+            self.add_round_key(round, state);
+            if (round == 0) {
+                break;
+            }
+            self.inv_mix_columns(state);
+        }
+    }
+    /*
+        Xor single block in the buffer with the initialization vector stored
+        internally
+     */
+    fn xor_with_initialization_vector(&mut self, buffer: &mut [u8]) {
+        for i in 0..AES_BLOCK_LENGTH_BYTES{
+            buffer[i] ^= self.initialization_vector[i];
         }
     }
 }
