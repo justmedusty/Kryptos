@@ -89,6 +89,23 @@ fn multiply(x: u8, y: u8) -> u8 {
     // The multiplication follows the logic of the AES algorithm for multiplication in GF(2^8).
 }
 
+/*
+    These two will get and put values as the buffer passed converted to a 2d array
+    requires unsafe blocks since working with raw pointers obviously
+
+    THIS IS ONLY SAFE IF YOU ENSURE THE RETURNED OWNED VALUE IS DROPPED
+    BEFORE BUFFER IS TOUCHED
+*/
+fn as_2d_array(buffer: &mut [u8]) -> Box<AesState> {
+    assert_eq!(buffer.len(), 16, "Buffer must have exactly 16 elements!");
+    let mut arr: AesState = [[0u8; 4]; 4];
+    unsafe {
+        arr = *&mut *(buffer.as_mut_ptr() as *mut AesState);
+    }
+
+    Box::new(arr)
+}
+
 enum AesMode {
     CBC, // Cipher block chaining
     ECB, //Codebook
@@ -183,7 +200,6 @@ impl AESContext {
 
     fn inv_shift_rows(&mut self, state: &mut AesState) {
         let mut temp: u8;
-
         // Rotate first row 1 column to the right
         temp = state[3][1];
         state[3][1] = state[2][1];
@@ -342,14 +358,14 @@ impl AESContext {
        mixing bytes. Uses the proper number of rounds based off the size of the
        AES Context object.
     */
-    fn cipher(&mut self, state: &mut AesState) {
+    fn cipher(&mut self, buffer: &mut [u8]) {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
-
-        let round = 0;
+        let mut binding = as_2d_array(buffer);
+        let state = binding.as_mut();
 
         self.add_round_key(0, state);
 
@@ -366,13 +382,15 @@ impl AESContext {
         self.add_round_key(num_rounds, state);
     }
 
-    fn inverted_cipher(&mut self, state: &mut AesState) {
+    fn inverted_cipher(&mut self, buffer: &mut [u8]) {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
 
+        let mut ret = as_2d_array(buffer);
+        let state = ret.as_mut();
         self.add_round_key(num_rounds, state);
 
         self.add_round_key(0, state);
@@ -398,31 +416,4 @@ impl AESContext {
     }
 
     fn ecb_encrypt(&mut self, buffer: &mut [u8]) {}
-
-    /*
-       I dont like this at all so this is just a pin for now
-       I will probably scrap this as it is a lot of overhead unnecessarily
-    */
-    fn buffer_into_2d_array(&mut self, buffer: &mut [u8]) -> AesState {
-        let mut state: AesState = [[0u8; 4]; 4];
-
-        for (i, chunk) in buffer.chunks(NUM_COLUMNS as usize).enumerate() {
-            for (j, &byte) in chunk.iter().enumerate() {
-                state[j][i] = byte;
-            }
-        }
-        state
-    }
-
-    fn state_into_buffer(&self, state: AesState) -> [u8; 16] {
-        let mut buffer = [0u8; 16];
-
-        for (i, column) in state.iter().enumerate() {
-            for (j, &byte) in column.iter().enumerate() {
-                buffer[i * NUM_COLUMNS as usize + j] = byte;
-            }
-        }
-
-        buffer
-    }
 }
