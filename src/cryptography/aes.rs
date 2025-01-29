@@ -436,10 +436,17 @@ impl AESContext {
         self.inverted_cipher(buffer);
     }
 
+    /*
+       Encrypt/Decrypt in CBC mode (cipher block chaining)
+       CBC xors each block with the previous block of plain/ciphertext
+
+    */
     fn cbc_encrypt(&mut self, buffer: &mut [u8]) {
         let len = buffer.len();
         let mut current_slice = &mut buffer[0..AES_BLOCK_LENGTH_BYTES];
+
         let mut initialization_vector = self.initialization_vector.clone();
+
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
             self.xor_with_initialization_vector(current_slice, Some(&initialization_vector));
             self.cipher(current_slice);
@@ -452,7 +459,27 @@ impl AESContext {
         }
     }
 
-    fn cbc_decrypt(&mut self, buffer: &mut [u8]) {}
+    fn cbc_decrypt(&mut self, buffer: &mut [u8]) {
+        let len = buffer.len();
+        let mut current_slice = &mut buffer[0..AES_BLOCK_LENGTH_BYTES];
+
+        let mut initialization_vector = self.initialization_vector.clone();
+
+        for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
+            for (i, byte) in current_slice.iter().enumerate() {
+                initialization_vector[i] = *byte;
+            }
+            self.inverted_cipher(current_slice);
+            self.xor_with_initialization_vector(current_slice, Some(&initialization_vector));
+
+            for (i, byte) in current_slice.iter().enumerate() {
+                initialization_vector[i] = *byte;
+            }
+
+            current_slice = &mut buffer[i * AES_BLOCK_LENGTH_BYTES
+                ..((i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES)];
+        }
+    }
 
     fn ctr_crypt(&mut self, buffer: &mut [u8]) {}
 }
