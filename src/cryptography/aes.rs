@@ -364,9 +364,9 @@ impl AESContext {
             AesSize::S256 => 14,
         };
         /*
-            This function is only safe so long as buffer is not touched while this value
-            is alive
-         */
+           This function is only safe so long as buffer is not touched while this value
+           is alive
+        */
         let mut ret = as_2d_array(buffer);
         let state = &mut ret;
 
@@ -412,11 +412,47 @@ impl AESContext {
        Xor single block in the buffer with the initialization vector stored
        internally
     */
-    fn xor_with_initialization_vector(&mut self, buffer: &mut [u8]) {
+    fn xor_with_initialization_vector(
+        &mut self,
+        buffer: &mut [u8],
+        initialization_vector: Option<&[u8]>,
+    ) {
+        let use_passed = initialization_vector.is_some();
         for i in 0..AES_BLOCK_LENGTH_BYTES {
-            buffer[i] ^= self.initialization_vector[i];
+            let vector = initialization_vector.unwrap().clone();
+            if (use_passed) {
+                buffer[i] ^= vector[i];
+            } else {
+                buffer[i] ^= self.initialization_vector[i];
+            }
         }
     }
 
-    fn ecb_encrypt(&mut self, buffer: &mut [u8]) {}
+    fn ecb_encrypt(&mut self, buffer: &mut [u8]) {
+        self.cipher(buffer);
+    }
+
+    fn ecb_decrypt(&mut self, buffer: &mut [u8]) {
+        self.inverted_cipher(buffer);
+    }
+
+    fn cbc_encrypt(&mut self, buffer: &mut [u8]) {
+        let len = buffer.len();
+        let mut current_slice = &mut buffer[0..AES_BLOCK_LENGTH_BYTES];
+        let mut initialization_vector = self.initialization_vector.clone();
+        for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
+            self.xor_with_initialization_vector(current_slice, Some(&initialization_vector));
+            self.cipher(current_slice);
+            initialization_vector = <[u8; 16]>::try_from(current_slice).unwrap();
+            current_slice = &mut buffer[i * AES_BLOCK_LENGTH_BYTES
+                ..((i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES)];
+        }
+        for (i, byte) in initialization_vector.iter().enumerate() {
+            self.initialization_vector[i] = *byte;
+        }
+    }
+
+    fn cbc_decrypt(&mut self, buffer: &mut [u8]) {}
+
+    fn ctr_crypt(&mut self, buffer: &mut [u8]) {}
 }
