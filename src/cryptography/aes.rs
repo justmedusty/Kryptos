@@ -481,5 +481,42 @@ impl AESContext {
         }
     }
 
-    fn ctr_crypt(&mut self, buffer: &mut [u8]) {}
+    fn ctr_encrypt(&mut self, buffer: &mut [u8]) {
+        let mut xor_buffer = [0u8; AES_BLOCK_LENGTH_BYTES];
+        let mut counter_index= AES_BLOCK_LENGTH_BYTES; // Counter index
+
+        for i in 0..buffer.len() {
+            if counter_index== AES_BLOCK_LENGTH_BYTES {
+                xor_buffer.copy_from_slice(&self.initialization_vector);
+                self.cipher(&mut xor_buffer); // Encrypt IV as AES block
+
+                // Increment the initialization vector, handling overflow
+                for byte in self.initialization_vector.iter_mut().rev() {
+                    if *byte == 255 {
+                        *byte = 0;
+                    } else {
+                        /*
+                           You propagate carries into the next byte and break since we are dealing with
+                           a 128bit integer in byte windows.
+                        */
+                        *byte += 1;
+                        break;
+                    }
+                }
+
+                counter_index= 0; // Reset counter
+            }
+
+            // XOR plaintext with encrypted counter
+            buffer[i] ^= xor_buffer[counter_index];
+            counter_index+= 1;
+        }
+    }
+
+    fn ctr_decrypt(&mut self, buffer: &mut [u8]) {
+        /*
+           Same operation for encryption and decryption
+        */
+        self.ctr_encrypt(buffer);
+    }
 }
