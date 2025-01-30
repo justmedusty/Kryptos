@@ -435,7 +435,7 @@ impl AESContext {
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
-        let mut output_slice= [0; AES_BLOCK_LENGTH_BYTES];
+        let mut output_slice = [0; AES_BLOCK_LENGTH_BYTES];
         for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
             output_slice[i] = *byte;
         }
@@ -492,17 +492,14 @@ impl AESContext {
     */
     fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let len = buffer.len();
-
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
-        for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
-            current_slice[i] = *byte;
-        }
-
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
-
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
+            for (num) in 0..16 {
+                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
+            }
             self.xor_with_initialization_vector(
                 &mut current_slice,
                 Some(&mut initialization_vector),
@@ -513,10 +510,6 @@ impl AESContext {
             for (num, byte) in output_slice.iter().enumerate() {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
             }
-
-            for (num) in 0..16 {
-                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
-            }
         }
 
         for (i, byte) in initialization_vector.iter().enumerate() {
@@ -526,16 +519,14 @@ impl AESContext {
 
     fn cbc_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let len = buffer.len();
-
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
-        for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
-            current_slice[i] = *byte;
-        }
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
-
+            for (num) in 0..AES_BLOCK_LENGTH_BYTES {
+                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
+            }
             self.inverted_cipher(&current_slice, &mut output_slice);
             self.xor_with_initialization_vector(&mut output_slice, Some(&initialization_vector));
 
@@ -545,10 +536,6 @@ impl AESContext {
 
             for (num, byte) in output_slice.iter().enumerate() {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
-            }
-
-            for (num) in 0..AES_BLOCK_LENGTH_BYTES {
-                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
         }
     }
@@ -561,7 +548,6 @@ impl AESContext {
         for i in 0..buffer.len() {
             if counter_index == AES_BLOCK_LENGTH_BYTES {
                 self.cipher(&mut xor_buffer, &mut output_slice); // Encrypt IV as AES block
-
 
                 let mut counter = u128::from_be_bytes(self.initialization_vector);
                 counter += 1;
