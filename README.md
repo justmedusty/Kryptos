@@ -1,4 +1,4 @@
-A simple rust telnet chat server.
+An encrypted rust telnet chat server.
 
 Takes usernames on entry and broadcasts join and leave messages with the users given name.
 
