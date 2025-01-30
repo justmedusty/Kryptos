@@ -91,8 +91,13 @@ mod rc4tests {
         for byte in output.iter().by_ref() {
             print!("{:02x} ", byte);
         }
+        println!(" ");
         assert_ne!(input, output);
+        for byte in input.iter_mut() {
+            *byte = 0;
+        }
         aes.decrypt(&output, &mut input);
+
         for byte in output.iter().by_ref() {
             print!("{:02x} ", byte);
         }
