@@ -524,9 +524,11 @@ impl AESContext {
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
+
             for (num) in 0..AES_BLOCK_LENGTH_BYTES {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
+
             self.inverted_cipher(&current_slice, &mut output_slice);
             self.xor_with_initialization_vector(&mut output_slice, Some(&initialization_vector));
 
@@ -551,7 +553,7 @@ impl AESContext {
 
                 let mut counter = u128::from_be_bytes(self.initialization_vector);
                 counter += 1;
-                self.initialization_vector = counter.to_be_bytes();
+                xor_buffer = counter.to_be_bytes();
 
                 counter_index = 0; // Reset counter
             }
