@@ -516,9 +516,6 @@ impl AESContext {
             }
         }
 
-        for (i, byte) in initialization_vector.iter().enumerate() {
-            self.initialization_vector[i] = *byte;
-        }
     }
 
     fn cbc_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
@@ -535,12 +532,13 @@ impl AESContext {
             self.inverted_cipher(&current_slice, &mut output_slice);
             self.xor_with_initialization_vector(&mut output_slice, Some(&initialization_vector));
 
-            initialization_vector.copy_from_slice(&output_slice);
+            initialization_vector.copy_from_slice(&next_iv);
 
             for (num, byte) in output_slice.iter().enumerate() {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
             }
         }
+        self.initialization_vector.copy_from_slice(&initialization_vector);
     }
 
     fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
