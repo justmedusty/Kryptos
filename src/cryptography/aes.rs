@@ -1,3 +1,4 @@
+use crate::cryptography::cryptography::Encryption;
 use std::cmp::PartialEq;
 
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
@@ -357,7 +358,7 @@ impl AESContext {
        mixing bytes. Uses the proper number of rounds based off the size of the
        AES Context object.
     */
-    fn cipher(&mut self, buffer: &mut [u8]) {
+    fn cipher(&mut self, buffer: &[u8], output: &mut [u8]) {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
             AesSize::S192 => 12,
@@ -367,7 +368,11 @@ impl AESContext {
            This function is only safe so long as buffer is not touched while this value
            is alive
         */
-        let mut ret = as_2d_array(buffer);
+        let mut output_slice: [u8; 16] = [0u8; 16];
+        for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
+            output_slice[i] = *byte;
+        }
+        let mut ret = as_2d_array(&mut output_slice);
         let state = &mut ret;
 
         self.add_round_key(0, state);
@@ -383,16 +388,23 @@ impl AESContext {
         }
 
         self.add_round_key(num_rounds, state);
+
+        for (i, byte) in output_slice.iter_mut().enumerate() {
+            output[i] = *byte;
+        }
     }
 
-    fn inverted_cipher(&mut self, buffer: &mut [u8]) {
+    fn inverted_cipher(&mut self, buffer: &[u8], output: &mut [u8]) {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
-
-        let mut ret = as_2d_array(buffer);
+        let mut output_slice: &mut [u8] = &mut [0; 16];
+        for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
+            output_slice[i] = *byte;
+        }
+        let mut ret = as_2d_array(output_slice);
         let state = &mut ret;
         self.add_round_key(num_rounds, state);
 
@@ -406,6 +418,10 @@ impl AESContext {
                 break;
             }
             self.inv_mix_columns(state);
+        }
+
+        for (i, byte) in output_slice.iter_mut().enumerate() {
+            output[i] = *byte;
         }
     }
     /*
@@ -428,12 +444,12 @@ impl AESContext {
         }
     }
 
-    fn ecb_encrypt(&mut self, buffer: &mut [u8]) {
-        self.cipher(buffer);
+    fn ecb_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
+        self.cipher(buffer, output);
     }
 
-    fn ecb_decrypt(&mut self, buffer: &mut [u8]) {
-        self.inverted_cipher(buffer);
+    fn ecb_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
+        self.inverted_cipher(buffer, output);
     }
 
     /*
@@ -441,54 +457,82 @@ impl AESContext {
        CBC xors each block with the previous block of plain/ciphertext
 
     */
-    fn cbc_encrypt(&mut self, buffer: &mut [u8]) {
+    fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let len = buffer.len();
-        let mut current_slice = &mut buffer[0..AES_BLOCK_LENGTH_BYTES];
+
+
+        let mut current_slice= [0u8;AES_BLOCK_LENGTH_BYTES];
+        for (i , byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
+            current_slice[i] = *byte;
+        }
+
+        let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
 
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
-            self.xor_with_initialization_vector(current_slice, Some(&initialization_vector));
-            self.cipher(current_slice);
+            self.xor_with_initialization_vector(&mut current_slice, Some(&mut initialization_vector));
+            self.cipher(&current_slice, &mut output_slice);
             initialization_vector = <[u8; 16]>::try_from(current_slice).unwrap();
-            current_slice = &mut buffer[i * AES_BLOCK_LENGTH_BYTES
-                ..((i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES)];
+
+            for (num, byte) in output_slice.iter().enumerate() {
+                output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
+            }
+            for (num) in 0..16 {
+                output[i * AES_BLOCK_LENGTH_BYTES + num] = output_slice[num];
+            }
+
+            for (num) in 0..16 {
+                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
+            }
         }
+
         for (i, byte) in initialization_vector.iter().enumerate() {
             self.initialization_vector[i] = *byte;
         }
     }
 
-    fn cbc_decrypt(&mut self, buffer: &mut [u8]) {
+    fn cbc_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let len = buffer.len();
-        let mut current_slice = &mut buffer[0..AES_BLOCK_LENGTH_BYTES];
 
+        let mut current_slice= [0u8;AES_BLOCK_LENGTH_BYTES];
+        for (i , byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
+            current_slice[i] = *byte;
+        }
+        let mut output_slice = [0u8;AES_BLOCK_LENGTH_BYTES];
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
             for (i, byte) in current_slice.iter().enumerate() {
                 initialization_vector[i] = *byte;
             }
-            self.inverted_cipher(current_slice);
-            self.xor_with_initialization_vector(current_slice, Some(&initialization_vector));
+            self.inverted_cipher(&current_slice,&mut output_slice);
+            self.xor_with_initialization_vector(&mut output_slice, Some(&initialization_vector));
 
             for (i, byte) in current_slice.iter().enumerate() {
                 initialization_vector[i] = *byte;
             }
 
-            current_slice = &mut buffer[i * AES_BLOCK_LENGTH_BYTES
-                ..((i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES)];
+            for (num, byte) in output_slice.iter().enumerate() {
+                output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
+            }
+
+            for (num) in 0..AES_BLOCK_LENGTH_BYTES {
+                current_slice[i] =  buffer[i * AES_BLOCK_LENGTH_BYTES + num];
+            }
+
         }
     }
 
-    fn ctr_encrypt(&mut self, buffer: &mut [u8]) {
+    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let mut xor_buffer = [0u8; AES_BLOCK_LENGTH_BYTES];
-        let mut counter_index= AES_BLOCK_LENGTH_BYTES; // Counter index
+        let mut output_slice = xor_buffer.clone();
+        let mut counter_index = AES_BLOCK_LENGTH_BYTES; // Counter index
 
         for i in 0..buffer.len() {
-            if counter_index== AES_BLOCK_LENGTH_BYTES {
+            if counter_index == AES_BLOCK_LENGTH_BYTES {
                 xor_buffer.copy_from_slice(&self.initialization_vector);
-                self.cipher(&mut xor_buffer); // Encrypt IV as AES block
+                self.cipher(&mut xor_buffer, &mut output_slice); // Encrypt IV as AES block
 
                 // Increment the initialization vector, handling overflow
                 for byte in self.initialization_vector.iter_mut().rev() {
@@ -504,19 +548,41 @@ impl AESContext {
                     }
                 }
 
-                counter_index= 0; // Reset counter
+                counter_index = 0; // Reset counter
             }
 
             // XOR plaintext with encrypted counter
-            buffer[i] ^= xor_buffer[counter_index];
-            counter_index+= 1;
+            output[i] = buffer[i] ^ output_slice[counter_index];
+            counter_index += 1;
         }
     }
 
-    fn ctr_decrypt(&mut self, buffer: &mut [u8]) {
+    fn ctr_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         /*
            Same operation for encryption and decryption
         */
-        self.ctr_encrypt(buffer);
+        self.ctr_encrypt(buffer, output);
+    }
+}
+
+impl Encryption for AESContext {
+    fn initialize_context(&mut self) {
+        self.initialize_context();
+    }
+
+    fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
+        match self.mode {
+            AesMode::CBC => {}
+            AesMode::ECB => {}
+            AesMode::CTR => {}
+        }
+    }
+
+    fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
+        todo!()
+    }
+
+    fn set_key(&mut self, key: &[u8]) {
+        todo!()
     }
 }
