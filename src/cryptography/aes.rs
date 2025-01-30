@@ -107,6 +107,14 @@ fn as_2d_array(buffer: &mut [u8]) -> AesState {
     arr
 }
 
+fn from_2d_array(state: &mut AesState) -> [u8;16] {
+    let mut arr= [0u8;16];
+    unsafe {
+        arr = *&mut *(state.as_mut_ptr() as *mut [u8;16]);
+    }
+    arr
+}
+
 pub enum AesMode {
     CBC, // Cipher block chaining
     ECB, //Codebook
@@ -424,6 +432,7 @@ impl AESContext {
         self.shift_rows(state);
         self.add_round_key(num_rounds, state);
 
+        output_slice = from_2d_array(state);
         for (i, byte) in output_slice.iter_mut().enumerate() {
             output[i] = *byte;
         }
@@ -439,20 +448,18 @@ impl AESContext {
         for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
             output_slice[i] = *byte;
         }
-        let mut ret = as_2d_array(&mut output_slice);
-        let state = &mut ret;
-        self.add_round_key(num_rounds, state);
+        let mut state = as_2d_array(&mut output_slice);
+        self.add_round_key(num_rounds, &mut state);
 
         for round in (1..num_rounds).rev() {
-            self.inv_shift_rows(state);
-            self.inverted_sub_bytes(state);
-            self.add_round_key(round, state);
-            if (round == 0) {
-                break;
+            self.inv_shift_rows(&mut state);
+            self.inverted_sub_bytes(&mut state);
+            self.add_round_key(round, &mut state);
+            if(round > 1){
+                self.inv_mix_columns(&mut state);
             }
-            self.inv_mix_columns(state);
         }
-
+        output_slice = from_2d_array(&mut state);
         for (i, byte) in output_slice.iter().enumerate() {
             output[i] = *byte;
         }
@@ -468,8 +475,8 @@ impl AESContext {
     ) {
         let use_passed = initialization_vector.is_some();
         for i in 0..AES_BLOCK_LENGTH_BYTES {
-            let vector = initialization_vector.unwrap().clone();
             if (use_passed) {
+                let vector = initialization_vector.unwrap().clone();
                 buffer[i] ^= vector[i];
             } else {
                 buffer[i] ^= self.initialization_vector[i];
@@ -500,6 +507,7 @@ impl AESContext {
             for (num) in 0..16 {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
+
             self.xor_with_initialization_vector(
                 &mut current_slice,
                 Some(&mut initialization_vector),
@@ -528,13 +536,11 @@ impl AESContext {
             for (num) in 0..AES_BLOCK_LENGTH_BYTES {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
-
+            let next_iv = current_slice;
             self.inverted_cipher(&current_slice, &mut output_slice);
             self.xor_with_initialization_vector(&mut output_slice, Some(&initialization_vector));
 
-            for (i, byte) in current_slice.iter().enumerate() {
-                initialization_vector[i] = *byte;
-            }
+            initialization_vector.copy_from_slice(&output_slice);
 
             for (num, byte) in output_slice.iter().enumerate() {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;

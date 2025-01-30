@@ -47,7 +47,7 @@ mod cryptography_tests {
     }
 
     #[test]
-    fn test_aes_cbc_encryption() {
+    fn test_aes_cbc_encryption_128() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
         let (input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
@@ -57,29 +57,41 @@ mod cryptography_tests {
     }
 
     #[test]
-    fn test_aes_cbc_decryption() {
-        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
+    fn test_aes_cbc_decryption_128() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
         let (mut input, mut output) = generate_ab_arrays!(256);
 
         let original_input = input.clone();
         assert_eq!(input, output);
         aes.encrypt(&input, &mut output);
-        for byte in output.iter().by_ref() {
-            print!("{:02x} ", byte);
-        }
-        println!(" ");
+
         assert_ne!(input, output);
         aes.decrypt(&output, &mut input);
-
-        for byte in output.iter().by_ref() {
-            print!("{:02x} ", byte);
-        }
         assert_eq!(input, original_input);
     }
 
     #[test]
-    fn test_aes_ecb_encryption() {
-        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+    fn test_aes_ecb_encryption_128() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S128, None);
+        let (input, mut output) = generate_ab_arrays!(16);
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_ecb_decryption_128() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S128, None);
+        let (mut input, mut output) = generate_ab_arrays!(16);
+        let original_input = input.clone();
+        aes.encrypt(&input, &mut output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+
+    #[test]
+    fn test_aes_ctr_encryption_128() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
         let (input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
         aes.encrypt(&input, &mut output);
@@ -87,9 +99,53 @@ mod cryptography_tests {
     }
 
     #[test]
-    fn test_aes_ecb_decryption() {
-        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+    fn test_aes_ctr_decryption_128() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
         let (mut input, mut output) = generate_ab_arrays!(256);
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+    #[test]
+    fn test_aes_cbc_encryption_192() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S192, None);
+        let (input, mut output) = generate_ab_arrays!(256);
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_cbc_decryption_192() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S192, None);
+        let (mut input, mut output) = generate_ab_arrays!(256);
+
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+
+        assert_ne!(input, output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+
+    #[test]
+    fn test_aes_ecb_encryption_192() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S192, None);
+        let (input, mut output) = generate_ab_arrays!(16);
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_ecb_decryption_192() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S192, None);
+        let (mut input, mut output) = generate_ab_arrays!(16);
         let original_input = input.clone();
         aes.encrypt(&input, &mut output);
         aes.decrypt(&output, &mut input);
@@ -97,7 +153,71 @@ mod cryptography_tests {
     }
 
     #[test]
-    fn test_aes_ctr_encryption() {
+    fn test_aes_ctr_encryption_192() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S192, None);
+        let (input, mut output) = generate_ab_arrays!(256);
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_ctr_decryption_192() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S192, None);
+        let (mut input, mut output) = generate_ab_arrays!(256);
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+
+    #[test]
+    fn test_aes_cbc_encryption_256() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
+        let (input, mut output) = generate_ab_arrays!(256);
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_cbc_decryption_256() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
+        let (mut input, mut output) = generate_ab_arrays!(256);
+
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+
+        assert_ne!(input, output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+
+    #[test]
+    fn test_aes_ecb_encryption_256() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+        let (input, mut output) = generate_ab_arrays!(16);
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_ecb_decryption_256() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+        let (mut input, mut output) = generate_ab_arrays!(16);
+        let original_input = input.clone();
+        aes.encrypt(&input, &mut output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+
+    #[test]
+    fn test_aes_ctr_encryption_256() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
         let (input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
@@ -106,8 +226,8 @@ mod cryptography_tests {
     }
 
     #[test]
-    fn test_aes_ctr_decryption() {
-        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
+    fn test_aes_ctr_decryption_256() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
         let (mut input, mut output) = generate_ab_arrays!(256);
         let original_input = input.clone();
         assert_eq!(input, output);
