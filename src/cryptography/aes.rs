@@ -147,7 +147,7 @@ impl PartialEq<AesSize> for AesSize {
 }
 
 impl AESContext {
-    pub(crate) fn new(mode: AesMode, size: AesSize, key: Option<&[u8]>) -> Self {
+    pub fn new(mode: AesMode, size: AesSize, key: Option<&[u8]>) -> Self {
         let mut new = AESContext {
             mode,
             size,
@@ -328,9 +328,9 @@ impl AESContext {
         // The first round key is the key itself.
         for i in 0..num_words_in_key {
             round_key[i * 4] = self.key[i * 4];
-            round_key[i * 4 + 1] = self.key[i * 4 + 1];
-            round_key[i * 4 + 2] = self.key[i * 4 + 2];
-            round_key[i * 4 + 3] = self.key[i * 4 + 3];
+            round_key[(i * 4) + 1] = self.key[(i * 4) + 1];
+            round_key[(i * 4) + 2] = self.key[(i * 4) + 2];
+            round_key[(i * 4) + 3] = self.key[(i * 4) + 3];
         }
 
         // All other round keys are found from the previous round keys.
@@ -355,7 +355,7 @@ impl AESContext {
                 temp_array[2] = get_sbox_number(temp_array[2]);
                 temp_array[3] = get_sbox_number(temp_array[3]);
 
-                temp_array[0] ^= ROUND_CONSTANTS[i / num_words_in_key];
+                temp_array[0] = temp_array[0] ^ ROUND_CONSTANTS[i / num_words_in_key];
             }
             if self.size == AesSize::S256 {
                 // For AES256
@@ -379,7 +379,7 @@ impl AESContext {
         self.key_expansion();
     }
 
-    fn initialize_initialization_vector(&mut self, iv: &[u8]) {
+    fn set_initialization_vector(&mut self, iv: &[u8]) {
         self.key_expansion();
 
         for (i, byte) in iv.iter().enumerate() {
@@ -414,16 +414,14 @@ impl AESContext {
 
         self.add_round_key(0, state);
 
-        for round in 1..=num_rounds {
+        for round in 1..num_rounds {
             self.sub_bytes(state);
             self.shift_rows(state);
-            if (round == num_rounds) {
-                break;
-            }
             self.mix_columns(state);
             self.add_round_key(round, state);
         }
-
+        self.sub_bytes(state);
+        self.shift_rows(state);
         self.add_round_key(num_rounds, state);
 
         for (i, byte) in output_slice.iter_mut().enumerate() {
@@ -437,17 +435,15 @@ impl AESContext {
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
-        let mut output_slice: &mut [u8] = &mut [0; 16];
+        let mut output_slice= [0; AES_BLOCK_LENGTH_BYTES];
         for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
             output_slice[i] = *byte;
         }
-        let mut ret = as_2d_array(output_slice);
+        let mut ret = as_2d_array(&mut output_slice);
         let state = &mut ret;
         self.add_round_key(num_rounds, state);
 
-        self.add_round_key(0, state);
-
-        for round in (num_rounds - 1)..0 {
+        for round in (1..num_rounds).rev() {
             self.inv_shift_rows(state);
             self.inverted_sub_bytes(state);
             self.add_round_key(round, state);
@@ -457,7 +453,7 @@ impl AESContext {
             self.inv_mix_columns(state);
         }
 
-        for (i, byte) in output_slice.iter_mut().enumerate() {
+        for (i, byte) in output_slice.iter().enumerate() {
             output[i] = *byte;
         }
     }
@@ -512,13 +508,10 @@ impl AESContext {
                 Some(&mut initialization_vector),
             );
             self.cipher(&current_slice, &mut output_slice);
-            initialization_vector = <[u8; 16]>::try_from(current_slice).unwrap();
+            initialization_vector = output_slice;
 
             for (num, byte) in output_slice.iter().enumerate() {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
-            }
-            for (num) in 0..16 {
-                output[i * AES_BLOCK_LENGTH_BYTES + num] = output_slice[num];
             }
 
             for (num) in 0..16 {
@@ -542,9 +535,7 @@ impl AESContext {
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
-            for (i, byte) in current_slice.iter().enumerate() {
-                initialization_vector[i] = *byte;
-            }
+
             self.inverted_cipher(&current_slice, &mut output_slice);
             self.xor_with_initialization_vector(&mut output_slice, Some(&initialization_vector));
 
@@ -557,34 +548,24 @@ impl AESContext {
             }
 
             for (num) in 0..AES_BLOCK_LENGTH_BYTES {
-                current_slice[i] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
+                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
         }
     }
 
     fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
-        let mut xor_buffer = [0u8; AES_BLOCK_LENGTH_BYTES];
+        let mut xor_buffer = self.initialization_vector.clone();
         let mut output_slice = xor_buffer.clone();
         let mut counter_index = AES_BLOCK_LENGTH_BYTES; // Counter index
 
         for i in 0..buffer.len() {
             if counter_index == AES_BLOCK_LENGTH_BYTES {
-                xor_buffer.copy_from_slice(&self.initialization_vector);
                 self.cipher(&mut xor_buffer, &mut output_slice); // Encrypt IV as AES block
 
-                // Increment the initialization vector, handling overflow
-                for byte in self.initialization_vector.iter_mut().rev() {
-                    if *byte == 255 {
-                        *byte = 0;
-                    } else {
-                        /*
-                           You propagate carries into the next byte and break since we are dealing with
-                           a 128bit integer in byte windows.
-                        */
-                        *byte += 1;
-                        break;
-                    }
-                }
+
+                let mut counter = u128::from_be_bytes(self.initialization_vector);
+                counter += 1;
+                self.initialization_vector = counter.to_be_bytes();
 
                 counter_index = 0; // Reset counter
             }

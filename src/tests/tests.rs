@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod rc4tests {
+mod cryptography_tests {
     use crate::cryptography::aes::*;
     use crate::cryptography::cryptography::Encryption;
     use crate::cryptography::rc4::{Rc4State, KEY_SIZE_BYTES};
@@ -71,7 +71,7 @@ mod rc4tests {
 
     #[test]
     fn test_aes_cbc_decryption() {
-        let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
         let mut input = [0; 256];
         let mut output = [0; 256];
 
@@ -146,7 +146,7 @@ mod rc4tests {
 
     #[test]
     fn test_aes_ctr_encryption() {
-        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
         let mut input = [0; 256];
         let mut output = [0; 256];
 

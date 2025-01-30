@@ -17,7 +17,7 @@ pub struct EncryptionContext {
         with vtable lookups, for this it is ok but it is important
         to remember that
      */
-    pub(crate) context: Box<dyn Encryption>,
+    pub context: Box<dyn Encryption>,
 }
 /*
     This s required since the parent struct Telnet derives the debug trait
