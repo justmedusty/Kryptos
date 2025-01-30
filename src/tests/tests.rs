@@ -93,9 +93,6 @@ mod rc4tests {
         }
         println!(" ");
         assert_ne!(input, output);
-        for byte in input.iter_mut() {
-            *byte = 0;
-        }
         aes.decrypt(&output, &mut input);
 
         for byte in output.iter().by_ref() {
@@ -103,4 +100,101 @@ mod rc4tests {
         }
         assert_eq!(input, original_input);
     }
+
+
+    #[test]
+    fn test_aes_ecb_encryption() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+        let mut input = [0; 16];
+        let mut output = [0; 16];
+
+        for i in 0..input.len() {
+            if i % 2 == 0 {
+                input[i] = 'B' as u8;
+                output[i] = 'B' as u8;
+                continue;
+            }
+            output[i] = 'A' as u8;
+            input[i] = 'A' as u8;
+        }
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_ecb_decryption() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+        let mut input = [0; 32];
+        let mut output = [0; 32];
+
+        for i in 0..input.len() {
+            if i % 2 == 0 {
+                input[i] = 'B' as u8;
+                output[i] = 'B' as u8;
+                continue;
+            }
+            output[i] = 'A' as u8;
+            input[i] = 'A' as u8;
+        }
+        let original_input = input.clone();
+        aes.encrypt(&input, &mut output);
+        aes.decrypt(&output, &mut input);
+        assert_eq!(input, original_input);
+    }
+
+
+    #[test]
+    fn test_aes_ctr_encryption() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
+        let mut input = [0; 256];
+        let mut output = [0; 256];
+
+        for i in 0..input.len() {
+            if i % 2 == 0 {
+                input[i] = 'B' as u8;
+                output[i] = 'B' as u8;
+                continue;
+            }
+            output[i] = 'A' as u8;
+            input[i] = 'A' as u8;
+        }
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+
+        assert_ne!(input, output);
+    }
+
+    #[test]
+    fn test_aes_ctr_decryption() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
+        let mut input = [0; 256];
+        let mut output = [0; 256];
+
+        for i in 0..input.len() {
+            if i % 2 == 0 {
+                input[i] = 'B' as u8;
+                output[i] = 'B' as u8;
+                continue;
+            }
+            output[i] = 'A' as u8;
+            input[i] = 'A' as u8;
+        }
+
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        aes.encrypt(&input, &mut output);
+        for byte in output.iter().by_ref() {
+            print!("{:02x} ", byte);
+        }
+        println!(" ");
+        assert_ne!(input, output);
+        aes.decrypt(&output, &mut input);
+
+        for byte in output.iter().by_ref() {
+            print!("{:02x} ", byte);
+        }
+        assert_eq!(input, original_input);
+    }
+
 }

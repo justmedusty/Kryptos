@@ -611,7 +611,7 @@ impl Encryption for AESContext {
     fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
         match self.mode {
             AesMode::CBC => {
-                self.ctr_encrypt(input, output);
+                self.cbc_encrypt(input, output);
             }
             AesMode::ECB => {
                 self.ecb_encrypt(input, output);
@@ -625,7 +625,7 @@ impl Encryption for AESContext {
     fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
         match self.mode {
             AesMode::CBC => {
-                self.ctr_decrypt(input, output);
+                self.cbc_decrypt(input, output);
             }
             AesMode::ECB => {
                 self.ecb_decrypt(input, output);
