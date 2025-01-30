@@ -1,6 +1,7 @@
 use crate::cryptography::cryptography::Encryption;
 use rand::RngCore;
 use std::cmp::PartialEq;
+use std::process::exit;
 
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
 const AES_KEY_LENGTH_BYTES_MAX: usize = 32;
@@ -98,11 +99,11 @@ fn multiply(x: u8, y: u8) -> u8 {
     THIS IS ONLY SAFE IF YOU ENSURE THE RETURNED OWNED VALUE IS DROPPED
     BEFORE BUFFER IS TOUCHED
 */
-fn as_2d_array(buffer: &[u8; 16]) -> AesState {
+fn as_2d_array(buffer: &[u8]) -> AesState {
     let mut state: AesState = [[0u8; 4]; 4];
     for i in 0..4 {
         for j in 0..4 {
-            state[j][i] = buffer[i * 4 + j];
+            state[i][j] = buffer[i * 4 + j];
         }
     }
     state
@@ -112,7 +113,7 @@ fn from_2d_array(state: &AesState) -> [u8; 16] {
     let mut buffer = [0u8; 16];
     for i in 0..4 {
         for j in 0..4 {
-            buffer[i * 4 + j] = state[j][i];
+            buffer[i * 4 + j] = state[i][j];
         }
     }
     buffer
@@ -174,7 +175,7 @@ impl AESContext {
                 AesSize::S192 => 192,
                 AesSize::S256 => 256,
             };
-            for i in 0..key_size {
+            for i in 0..key_size / 8 {
                 new.key[i] = key[i];
             }
         } else {
@@ -197,7 +198,7 @@ impl AESContext {
     fn add_round_key(&mut self, round: u8, state: &mut AesState) {
         for i in 0..4 {
             for j in 0..4 {
-                state[j][i] ^= self.round_keys
+                state[i][j] ^= self.round_keys
                     [((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
             }
         }
@@ -220,52 +221,55 @@ impl AESContext {
     }
 
     fn shift_rows(&mut self, state: &mut AesState) {
-        // Row 0: No shift
-        // Row 1: Shift left by 1
-        let temp = state[1][0];
-        state[1][0] = state[1][1];
-        state[1][1] = state[1][2];
-        state[1][2] = state[1][3];
+        let mut temp: u8;
+
+        // Rotate first row 1 column to the left
+        temp = state[0][1];
+        state[0][1] = state[1][1];
+        state[1][1] = state[2][1];
+        state[2][1] = state[3][1];
+        state[3][1] = temp;
+
+        // Rotate second row 2 columns to the left
+        temp = state[0][2];
+        state[0][2] = state[2][2];
+        state[2][2] = temp;
+
+        temp = state[1][2];
+        state[1][2] = state[3][2];
+        state[3][2] = temp;
+
+        // Rotate third row 3 columns to the left
+        temp = state[0][3];
+        state[0][3] = state[3][3];
+        state[3][3] = state[2][3];
+        state[2][3] = state[1][3];
         state[1][3] = temp;
-
-        // Row 2: Shift left by 2
-        let temp1 = state[2][0];
-        let temp2 = state[2][1];
-        state[2][0] = state[2][2];
-        state[2][1] = state[2][3];
-        state[2][2] = temp1;
-        state[2][3] = temp2;
-
-        // Row 3: Shift left by 3 (equivalent to shifting right by 1)
-        let temp = state[3][3];
-        state[3][3] = state[3][2];
-        state[3][2] = state[3][1];
-        state[3][1] = state[3][0];
-        state[3][0] = temp;
     }
 
     fn inv_shift_rows(&mut self, state: &mut AesState) {
-        // Row 0: No shift
-        // Row 1: Shift right by 1
-        let temp = state[1][3];
-        state[1][3] = state[1][2];
-        state[1][2] = state[1][1];
-        state[1][1] = state[1][0];
-        state[1][0] = temp;
+        let mut temp: u8;
+        // Rotate first row 1 column to the right
+        temp = state[3][1];
+        state[3][1] = state[2][1];
+        state[2][1] = state[1][1];
+        state[1][1] = state[0][1];
+        state[0][1] = temp;
 
-        // Row 2: Shift right by 2
-        let temp1 = state[2][0];
-        let temp2 = state[2][1];
-        state[2][0] = state[2][2];
-        state[2][1] = state[2][3];
-        state[2][2] = temp1;
-        state[2][3] = temp2;
+        // Rotate second row 2 columns to the right
+        temp = state[0][2];
+        state[0][2] = state[2][2];
+        state[2][2] = temp;
 
-        // Row 3: Shift right by 3 (equivalent to shifting left by 1)
-        let temp = state[3][0];
-        state[3][0] = state[3][1];
-        state[3][1] = state[3][2];
-        state[3][2] = state[3][3];
+        temp = state[1][2];
+        state[1][2] = state[3][2];
+        state[3][2] = temp;
+
+        // Rotate third row 3 columns to the right
+        temp = state[0][3];
+        state[0][3] = state[1][3];
+        state[1][3] = state[2][3];
+        state[2][3] = state[3][3];
         state[3][3] = temp;
     }
     fn inv_mix_columns(&mut self, state: &mut AesState) {
@@ -366,14 +370,12 @@ impl AESContext {
                 temp_array[0] = temp_array[0] ^ ROUND_CONSTANTS[i / num_words_in_key];
             }
             if self.size == AesSize::S256 {
-                // For AES256
-                if i % num_words_in_key == 4 {
-                    // SubWord() function for AES256
-                    temp_array[0] = get_sbox_number(temp_array[0]);
-                    temp_array[1] = get_sbox_number(temp_array[1]);
-                    temp_array[2] = get_sbox_number(temp_array[2]);
-                    temp_array[3] = get_sbox_number(temp_array[3]);
-                }
+
+                // SubWord() function for AES256
+                temp_array[0] = get_sbox_number(temp_array[0]);
+                temp_array[1] = get_sbox_number(temp_array[1]);
+                temp_array[2] = get_sbox_number(temp_array[2]);
+                temp_array[3] = get_sbox_number(temp_array[3]);
             }
             let j = i * 4;
             let k = (i - num_words_in_key) * 4;
@@ -409,33 +411,25 @@ impl AESContext {
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         };
-        /*
-           This function is only safe so long as buffer is not touched while this value
-           is alive
-        */
-        let mut output_slice: [u8; 16] = [0u8; 16];
-        for (i, byte) in buffer[0..AES_BLOCK_LENGTH_BYTES].iter().enumerate() {
-            output_slice[i] = *byte;
-        }
-        let mut ret = as_2d_array(&mut output_slice);
-        let state = &mut ret;
 
-        self.add_round_key(0, state);
+        let mut state = as_2d_array(buffer);
+
+        self.add_round_key(0, &mut state);
 
         for round in 1..num_rounds {
-            self.sub_bytes(state);
-            self.shift_rows(state);
-            self.mix_columns(state);
-            self.add_round_key(round, state);
+            self.sub_bytes(&mut state);
+            self.shift_rows(&mut state);
+            self.mix_columns(&mut state);
+            self.add_round_key(round, &mut state);
         }
-        self.sub_bytes(state);
-        self.shift_rows(state);
-        self.add_round_key(num_rounds, state);
 
-        output_slice = from_2d_array(state);
-        for (i, byte) in output_slice.iter_mut().enumerate() {
-            output[i] = *byte;
-        }
+        // Final round (no MixColumns)
+        self.sub_bytes(&mut state);
+        self.shift_rows(&mut state);
+        self.add_round_key(num_rounds, &mut state);
+
+        let result = from_2d_array(&state);
+        output.copy_from_slice(&result);
     }
 
     fn inverted_cipher(&mut self, buffer: &[u8], output: &mut [u8]) {
@@ -455,9 +449,12 @@ impl AESContext {
             self.inv_shift_rows(&mut state);
             self.inverted_sub_bytes(&mut state);
             self.add_round_key(round, &mut state);
-
             self.inv_mix_columns(&mut state);
         }
+        self.inv_shift_rows(&mut state);
+        self.inverted_sub_bytes(&mut state);
+        self.add_round_key(0, &mut state);
+
         output_slice = from_2d_array(&mut state);
         for (i, byte) in output_slice.iter().enumerate() {
             output[i] = *byte;
