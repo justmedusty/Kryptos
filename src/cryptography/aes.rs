@@ -93,11 +93,7 @@ fn multiply(x: u8, y: u8) -> u8 {
 }
 
 /*
-    These two will get and put values as the buffer passed converted to a 2d array
-    requires unsafe blocks since working with raw pointers obviously
-
-    THIS IS ONLY SAFE IF YOU ENSURE THE RETURNED OWNED VALUE IS DROPPED
-    BEFORE BUFFER IS TOUCHED
+    Convert to and from a C-style 2d array.
 */
 fn as_2d_array(buffer: &[u8]) -> AesState {
     let mut state: AesState = [[0u8; 4]; 4];
@@ -369,7 +365,7 @@ impl AESContext {
 
                 temp_array[0] = temp_array[0] ^ ROUND_CONSTANTS[i / num_words_in_key];
             }
-            if self.size == AesSize::S256 {
+            if self.size == AesSize::S256 && i % num_words_in_key == 4 {
 
                 // SubWord() function for AES256
                 temp_array[0] = get_sbox_number(temp_array[0]);
