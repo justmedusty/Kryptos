@@ -1,7 +1,6 @@
 use crate::cryptography::cryptography::Encryption;
 use rand::RngCore;
 use std::cmp::PartialEq;
-use std::process::exit;
 
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
 const AES_KEY_LENGTH_BYTES_MAX: usize = 32;
@@ -366,7 +365,6 @@ impl AESContext {
                 temp_array[0] = temp_array[0] ^ ROUND_CONSTANTS[i / num_words_in_key];
             }
             if self.size == AesSize::S256 && i % num_words_in_key == 4 {
-
                 // SubWord() function for AES256
                 temp_array[0] = get_sbox_number(temp_array[0]);
                 temp_array[1] = get_sbox_number(temp_array[1]);
@@ -511,7 +509,6 @@ impl AESContext {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
             }
         }
-
     }
 
     fn cbc_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
@@ -534,7 +531,8 @@ impl AESContext {
                 output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
             }
         }
-        self.initialization_vector.copy_from_slice(&initialization_vector);
+        self.initialization_vector
+            .copy_from_slice(&initialization_vector);
     }
 
     fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
@@ -566,18 +564,43 @@ impl AESContext {
         self.ctr_encrypt(buffer, output);
     }
 
-    pub fn print_round_keys(&mut self ,key : &[u8; AES_KEY_LENGTH_BYTES_MAX]) {
+    pub fn test_round_key(&mut self, key: &[u8], round: usize) -> bool {
         let num_rounds = match self.size {
-            AesSize::S128 => {10}
-            AesSize::S192 => {12}
-            AesSize::S256 => {14}
+            AesSize::S128 => 10,
+            AesSize::S192 => 12,
+            AesSize::S256 => 14,
         };
         let key_size = match self.size {
-            AesSize::S128 => {128}
-            AesSize::S192 => {192}
-            AesSize::S256 => {256}
+            AesSize::S128 => 128,
+            AesSize::S192 => 192,
+            AesSize::S256 => 256,
         };
-        for i in 0..=num_rounds { // Use `<=` to include the final round
+        let start = round * (key_size / 8);
+        let end = start + (key_size / 8);
+        let round_key = &self.round_keys[start..end];
+
+        for i in 0..key_size / 8 {
+            if (key[i] != round_key[i]) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn print_round_keys(&mut self, key: &[u8; AES_KEY_LENGTH_BYTES_MAX]) {
+        let num_rounds = match self.size {
+            AesSize::S128 => 10,
+            AesSize::S192 => 12,
+            AesSize::S256 => 14,
+        };
+        let key_size = match self.size {
+            AesSize::S128 => 128,
+            AesSize::S192 => 192,
+            AesSize::S256 => 256,
+        };
+        for i in 0..=num_rounds {
+            // Use `<=` to include the final round
             let start = i * 16;
             let end = start + 16;
 
@@ -629,6 +652,4 @@ impl Encryption for AESContext {
         }
         self.key_expansion();
     }
-
-
 }
