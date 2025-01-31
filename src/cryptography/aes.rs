@@ -589,6 +589,8 @@ impl AESContext {
     }
 
     pub fn print_round_keys(&mut self, key: &[u8; AES_KEY_LENGTH_BYTES_MAX]) {
+        self.set_key(key);
+        self.key_expansion();
         let num_rounds = match self.size {
             AesSize::S128 => 10,
             AesSize::S192 => 12,
