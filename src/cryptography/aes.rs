@@ -93,6 +93,10 @@ fn multiply(x: u8, y: u8) -> u8 {
 
 /*
     Convert to and from a C-style 2d array.
+
+    AES is column major but I am using a C impl for guidance.
+    I can change this but I will have to change all of the transformation
+    functions so it is not really worth it
 */
 fn as_2d_array(buffer: &[u8]) -> AesState {
     let mut state: AesState = [[0u8; 4]; 4];
@@ -187,14 +191,18 @@ impl AESContext {
             IV needs to be unique for every message and stored with the message
         */
         rand::rng().fill_bytes(&mut new.initialization_vector);
+        new.initialize_context();
 
         new
     }
     fn add_round_key(&mut self, round: u8, state: &mut AesState) {
         for i in 0..4 {
             for j in 0..4 {
+                println!("STATE {}",state[i][j]);
                 state[i][j] ^= self.round_keys
                     [((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
+                println!("STATE {}",state[i][j]);
+
             }
         }
     }
@@ -439,7 +447,7 @@ impl AESContext {
         let mut state = as_2d_array(&mut output_slice);
         self.add_round_key(num_rounds, &mut state);
 
-        for round in (1..num_rounds).rev() {
+        for round in (1..=num_rounds - 1).rev() {
             self.inv_shift_rows(&mut state);
             self.inverted_sub_bytes(&mut state);
             self.add_round_key(round, &mut state);
