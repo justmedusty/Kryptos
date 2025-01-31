@@ -472,7 +472,7 @@ impl AESContext {
         let use_passed = initialization_vector.is_some();
         for i in 0..AES_BLOCK_LENGTH_BYTES {
             if use_passed {
-                let vector = initialization_vector.unwrap().clone();
+                let vector = initialization_vector.unwrap();
                 buffer[i] ^= vector[i];
             } else {
                 buffer[i] ^= self.initialization_vector[i];
@@ -605,7 +605,6 @@ impl AESContext {
             AesSize::S256 => 256,
         };
         for i in 0..=num_rounds {
-            // Use `<=` to include the final round
             let start = i * 16;
             let end = start + 16;
 
