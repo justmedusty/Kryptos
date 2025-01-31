@@ -2,9 +2,7 @@ use crate::cryptography::rc4::KEY_SIZE_BYTES;
 use crate::telnet::{spawn_server_thread, ConnectionPool};
 use rand::distr::Alphanumeric;
 use rand::Rng;
-use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::ops::{Add, DerefMut};
 use std::sync::{Arc, RwLock};
 use telnet::{open_telnet_connection, ServerFunctions};
 /*

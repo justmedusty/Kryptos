@@ -1,4 +1,4 @@
-use crate::cryptography::cryptography::{Encryption, EncryptionContext};
+use crate::cryptography::cryptography::{ EncryptionContext};
 use crate::cryptography::rc4::Rc4State;
 use crate::{GREETING, INVALID_NAME, PORT, SUCCESS_STRING};
 use std::collections::VecDeque;
@@ -356,7 +356,7 @@ pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
         let (mut read_buffer, mut connection_id, mut val);
         let result = handle_new_connection(connection.clone(), pool.clone());
 
-        if (!result) {
+        if !result {
             return;
         }
 

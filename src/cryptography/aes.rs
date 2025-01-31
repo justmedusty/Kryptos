@@ -75,16 +75,16 @@ fn x_time(x: u8) -> u8 {
     let reduction = (x >> 7) & 1; // Extract the leftmost bit
 
     // If the leftmost bit was 1, reduce the result by XORing with 0x1b
-    (shifted ^ (reduction * 0x1b))
+    shifted ^ (reduction * 0x1b)
 }
 
 fn multiply(x: u8, y: u8) -> u8 {
     // This function performs multiplication in GF(2^8) (Galois Field) using XOR and the x_time function
-    return (((y & 1) * x) ^                               // If the least significant bit of y is 1, add x (no shift)
+    return ((y & 1) * x) ^                               // If the least significant bit of y is 1, add x (no shift)
         ((y >> 1 & 1) * x_time(x)) ^                   // If the second least significant bit of y is 1, add x_time(x) (shifted by 1)
         ((y >> 2 & 1) * x_time(x_time(x))) ^           // If the third bit is 1, add x_time(x_time(x)) (shifted by 2)
         ((y >> 3 & 1) * x_time(x_time(x_time(x)))) ^   // If the fourth bit is 1, add x_time(x_time(x_time(x))) (shifted by 3)
-        ((y >> 4 & 1) * x_time(x_time(x_time(x_time(x)))))); // If the fifth bit is 1, add x_time(x_time(x_time(x_time(x)))) (shifted by 4)
+        ((y >> 4 & 1) * x_time(x_time(x_time(x_time(x))))); // If the fifth bit is 1, add x_time(x_time(x_time(x_time(x)))) (shifted by 4)
 
     // In this process, we're using the binary representation of y to determine how many times
     // to multiply x by powers of x in GF(2^8) (via x_time), and then XOR the results.
@@ -167,7 +167,7 @@ impl AESContext {
             initialization_vector: [0u8; 16],
         };
 
-        if (key.is_some()) {
+        if key.is_some() {
             let key = key.unwrap();
             let key_size = match new.size {
                 AesSize::S128 => 128,
@@ -336,7 +336,7 @@ impl AESContext {
             AesSize::S192 => 12,
             AesSize::S256 => 14,
         }; // Number of rounds
-        let mut round_key = &mut self.round_keys;
+        let round_key = &mut self.round_keys;
 
         // The first round key is the key itself.
         for i in 0..num_words_in_key {
@@ -394,7 +394,7 @@ impl AESContext {
 
         for (i, byte) in iv.iter().enumerate() {
             self.initialization_vector[i] = *byte;
-            if (i == AES_BLOCK_LENGTH_BYTES) {
+            if i == AES_BLOCK_LENGTH_BYTES {
                 break;
             }
         }
@@ -471,7 +471,7 @@ impl AESContext {
     ) {
         let use_passed = initialization_vector.is_some();
         for i in 0..AES_BLOCK_LENGTH_BYTES {
-            if (use_passed) {
+            if use_passed {
                 let vector = initialization_vector.unwrap().clone();
                 buffer[i] ^= vector[i];
             } else {
@@ -500,7 +500,7 @@ impl AESContext {
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
-            for (num) in 0..16 {
+            for num in 0..16 {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
 
@@ -524,7 +524,7 @@ impl AESContext {
         let mut initialization_vector = self.initialization_vector.clone();
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
-            for (num) in 0..AES_BLOCK_LENGTH_BYTES {
+            for num in 0..AES_BLOCK_LENGTH_BYTES {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
             let next_iv = current_slice;
@@ -573,11 +573,6 @@ impl AESContext {
     Functions below are just for testing. I can remove them but fuggit they can stay
  */
     pub fn test_round_key(&mut self, key: &[u8], round: usize) -> bool {
-        let num_rounds = match self.size {
-            AesSize::S128 => 10,
-            AesSize::S192 => 12,
-            AesSize::S256 => 14,
-        };
         let key_size = match self.size {
             AesSize::S128 => 128,
             AesSize::S192 => 192,
@@ -588,7 +583,7 @@ impl AESContext {
         let round_key = &self.round_keys[start..end];
 
         for i in 0..key_size / 8 {
-            if (key[i] != round_key[i]) {
+            if key[i] != round_key[i] {
                 return false;
             }
         }
