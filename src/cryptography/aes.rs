@@ -198,10 +198,8 @@ impl AESContext {
     fn add_round_key(&mut self, round: u8, state: &mut AesState) {
         for i in 0..4 {
             for j in 0..4 {
-                println!("STATE {}",state[i][j]);
                 state[i][j] ^= self.round_keys
                     [((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
-                println!("STATE {}",state[i][j]);
 
             }
         }
@@ -571,7 +569,9 @@ impl AESContext {
         */
         self.ctr_encrypt(buffer, output);
     }
-
+/*
+    Functions below are just for testing. I can remove them but fuggit they can stay
+ */
     pub fn test_round_key(&mut self, key: &[u8], round: usize) -> bool {
         let num_rounds = match self.size {
             AesSize::S128 => 10,
