@@ -565,6 +565,29 @@ impl AESContext {
         */
         self.ctr_encrypt(buffer, output);
     }
+
+    pub fn print_round_keys(&mut self ,key : &[u8; AES_KEY_LENGTH_BYTES_MAX]) {
+        let num_rounds = match self.size {
+            AesSize::S128 => {10}
+            AesSize::S192 => {12}
+            AesSize::S256 => {14}
+        };
+        let key_size = match self.size {
+            AesSize::S128 => {128}
+            AesSize::S192 => {192}
+            AesSize::S256 => {256}
+        };
+        for i in 0..=num_rounds { // Use `<=` to include the final round
+            let start = i * 16;
+            let end = start + 16;
+
+            println!(
+                "round {} round key: {:02x?}",
+                i,
+                &self.round_keys[start..end]
+            );
+        }
+    }
 }
 
 impl Encryption for AESContext {
@@ -604,5 +627,8 @@ impl Encryption for AESContext {
         for (index, byte) in key.iter().enumerate() {
             self.key[index] = *byte;
         }
+        self.key_expansion();
     }
+
+
 }

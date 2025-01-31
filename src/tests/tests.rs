@@ -307,4 +307,23 @@ mod cryptography_tests {
 
         assert_eq!(ciphertext, expected_ciphertext);
     }
+
+    /*
+        This test just prints the keys and I manually examined them, they look good so key scheduling is correct
+     */
+    #[test]
+    fn round_key_test(){
+        let key = [
+            0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+            0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        ];
+
+
+
+        let mut context = AESContext::new(AesMode::ECB, AesSize::S128, None);
+        context.set_key(key.as_slice());
+        context.print_round_keys(&key);
+    }
 }
