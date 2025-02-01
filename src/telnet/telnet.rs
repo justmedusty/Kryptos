@@ -231,7 +231,6 @@ pub fn open_telnet_connection(
     let (tcp_conn, sock_addr) = listener.accept().expect("Failed to accept connection");
 
     let read_buff = vec![0u8; 4096];
-    let write_buff = vec![0u8; 4096];
 
     let mut server_connection = TelnetServerConnection {
         connection_id: 0,

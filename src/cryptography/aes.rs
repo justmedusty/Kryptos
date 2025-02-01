@@ -1,5 +1,5 @@
 use crate::cryptography::cryptography::Encryption;
-use rand::RngCore;
+use rand::{Fill, Rng, RngCore};
 use std::cmp::PartialEq;
 
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
@@ -200,7 +200,6 @@ impl AESContext {
             for j in 0..4 {
                 state[i][j] ^= self.round_keys
                     [((round * NUM_COLUMNS * 4) + (i as u8 * NUM_COLUMNS) + j as u8) as usize];
-
             }
         }
     }
@@ -461,6 +460,28 @@ impl AESContext {
         }
     }
     /*
+       Generate a new IV to be used
+    */
+    fn generate_initialization_vector(&mut self) -> [u8; AES_BLOCK_LENGTH_BYTES] {
+        let mut buffer = [0u8; AES_BLOCK_LENGTH_BYTES];
+        rand::fill(&mut buffer);
+        buffer
+    }
+
+    /*
+       The last 16 bytes will hold the IV
+    */
+    fn read_initialization_vector(&mut self, buffer: &mut [u8]) -> [u8; AES_BLOCK_LENGTH_BYTES] {
+        let len = buffer.len();
+        let start = len - AES_BLOCK_LENGTH_BYTES;
+        let mut array = [0u8; AES_BLOCK_LENGTH_BYTES];
+
+        for i in 0..AES_BLOCK_LENGTH_BYTES {
+            array[i] = buffer[start + i];
+        }
+        array
+    }
+    /*
        Xor single block in the buffer with the initialization vector stored
        internally
     */
@@ -494,12 +515,16 @@ impl AESContext {
 
     */
     fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
-        let len = buffer.len();
+        let input_len = buffer.len();
+        let output_len = output.len();
+        if (output_len - 16) < input_len {
+            panic!("Not enough room for nonce/IV!");
+        }
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut initialization_vector = self.initialization_vector.clone();
 
-        for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
+        for i in 0..(input_len / AES_BLOCK_LENGTH_BYTES) {
             for num in 0..16 {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
@@ -542,6 +567,11 @@ impl AESContext {
     }
 
     fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
+        let input_len = buffer.len();
+        let output_len = output.len();
+        if (output_len - 16) < input_len {
+            panic!("Not enough room for nonce/IV!");
+        }
         let mut xor_buffer = self.initialization_vector.clone();
         let mut output_slice = xor_buffer.clone();
         let mut counter_index = AES_BLOCK_LENGTH_BYTES; // Counter index
@@ -569,9 +599,9 @@ impl AESContext {
         */
         self.ctr_encrypt(buffer, output);
     }
-/*
-    Functions below are just for testing. I can remove them but fuggit they can stay
- */
+    /*
+       Functions below are just for testing. I can remove them but fuggit they can stay
+    */
     pub fn test_round_key(&mut self, key: &[u8], round: usize) -> bool {
         let key_size = match self.size {
             AesSize::S128 => 128,
@@ -598,11 +628,6 @@ impl AESContext {
             AesSize::S128 => 10,
             AesSize::S192 => 12,
             AesSize::S256 => 14,
-        };
-        let key_size = match self.size {
-            AesSize::S128 => 128,
-            AesSize::S192 => 192,
-            AesSize::S256 => 256,
         };
         for i in 0..=num_rounds {
             let start = i * 16;
