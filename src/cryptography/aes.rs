@@ -517,9 +517,6 @@ impl AESContext {
     fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let input_len = buffer.len();
         let output_len = output.len();
-        if (output_len - 16) < input_len {
-            panic!("Not enough room for nonce/IV!");
-        }
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut initialization_vector = self.initialization_vector.clone();
@@ -566,12 +563,9 @@ impl AESContext {
             .copy_from_slice(&initialization_vector);
     }
 
-    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
+    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]){
         let input_len = buffer.len();
         let output_len = output.len();
-        if (output_len - 16) < input_len {
-            panic!("Not enough room for nonce/IV!");
-        }
         let mut xor_buffer = self.initialization_vector.clone();
         let mut output_slice = xor_buffer.clone();
         let mut counter_index = AES_BLOCK_LENGTH_BYTES; // Counter index
