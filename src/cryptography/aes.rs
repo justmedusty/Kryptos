@@ -1,5 +1,5 @@
 use crate::cryptography::cryptography::Encryption;
-use rand::{RngCore};
+use rand::RngCore;
 use std::cmp::PartialEq;
 
 const AES_BLOCK_LENGTH_BYTES: usize = 16;
@@ -529,10 +529,7 @@ impl AESContext {
            Resize if required to store the 16 byte IV as a prefix to the rest of the data
         */
         if (output_len - AES_BLOCK_LENGTH_BYTES as i64) < input_len {
-            output.resize(
-                input_len as usize + AES_BLOCK_LENGTH_BYTES,
-                0,
-            );
+            output.resize(input_len as usize + AES_BLOCK_LENGTH_BYTES, 0);
         }
 
         /*
@@ -598,48 +595,65 @@ impl AESContext {
             .copy_from_slice(&initialization_vector);
     }
 
-    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut Vec<u8>) {
+    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut Vec<u8>, decrypt: bool) {
         /*
-            Generate a fresh IV every encryption operation
-         */
-        self.generate_initialization_vector();
+           Generate a fresh IV every encryption operation
+        */
+        let mut xor_buffer = [0; 16];
         /*
            Casting these just in case it goes negative on the subtraction operation, don't want wraparound or panic because of this
         */
-        let input_len: i64 = buffer.len() as i64;
+        let mut input_len: i64 = buffer.len() as i64;
         let output_len: i64 = output.capacity() as i64;
 
-        /*
-           Resize if required to store the 16 byte IV as a prefix to the rest of the data
-        */
-        if (output_len - AES_BLOCK_LENGTH_BYTES as i64) < input_len {
-            output.resize(
-                input_len as usize,
-                0,
-            );
+        if (!decrypt) {
+            self.generate_initialization_vector();
+
+            /*
+               Resize if required to store the 16 byte IV as a prefix to the rest of the data
+            */
+            if (output_len - AES_BLOCK_LENGTH_BYTES as i64) < input_len {
+                output.resize(input_len as usize + AES_BLOCK_LENGTH_BYTES, 0);
+            }
+
+            /*
+               Stuff the IV right on in there
+            */
+            for i in 0..AES_BLOCK_LENGTH_BYTES {
+                output[i] = self.initialization_vector[i];
+            }
+            xor_buffer = self.initialization_vector.clone();
+        } else {
+            for i in 0..AES_BLOCK_LENGTH_BYTES {
+                xor_buffer[i] = buffer[i];
+            }
         }
 
-        /*
-      Stuff the IV right on in there
-   */
-        for i in 0..AES_BLOCK_LENGTH_BYTES {
-            output[i] = self.initialization_vector[i];
-        }
-        let mut xor_buffer = self.initialization_vector.clone();
-        let mut output_slice = [0u8;AES_BLOCK_LENGTH_BYTES];
+        let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
+
         let mut counter_index = AES_BLOCK_LENGTH_BYTES; // Counter index
+
         let mut counter = u128::from_be_bytes(self.initialization_vector);
-        for i in 0..buffer.len() {
+
+        if (decrypt) {
+            input_len -= AES_BLOCK_LENGTH_BYTES as i64;
+        }
+
+        for i in 0..input_len as usize {
             if counter_index == AES_BLOCK_LENGTH_BYTES {
                 self.cipher(&mut xor_buffer, &mut output_slice); // Encrypt IV as AES block
                 counter += 1;
                 xor_buffer = counter.to_be_bytes();
-
                 counter_index = 0; // Reset counter
             }
 
             // XOR plaintext with encrypted counter
-            output[i] = buffer[i] ^ output_slice[counter_index];
+            if (decrypt) {
+                output[i] = buffer[i + AES_BLOCK_LENGTH_BYTES] ^ output_slice[counter_index];
+            } else {
+                output[i + AES_BLOCK_LENGTH_BYTES] = buffer[i] ^ output_slice[counter_index];
+            }
+
             counter_index += 1;
         }
     }
@@ -648,7 +662,7 @@ impl AESContext {
         /*
            Same operation for encryption and decryption
         */
-        self.ctr_encrypt(buffer, output);
+        self.ctr_encrypt(buffer, output, true);
     }
     /*
        Functions below are just for testing. I can remove them but fuggit they can stay
@@ -707,7 +721,7 @@ impl Encryption for AESContext {
                 self.ecb_encrypt(input, output);
             }
             AesMode::CTR => {
-                self.ctr_encrypt(input, output);
+                self.ctr_encrypt(input, output, false);
             }
         }
     }
