@@ -1,7 +1,7 @@
 use crate::cryptography::cryptography::Encryption;
 use rand::RngCore;
 
-pub const KEY_SIZE_BYTES: usize = 256;
+pub const KEY_SIZE_BYTES: usize = 32;
 
 #[derive(Debug)]
 pub struct Rc4State {
