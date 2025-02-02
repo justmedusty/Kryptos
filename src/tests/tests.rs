@@ -26,9 +26,9 @@ mod cryptography_tests {
     #[test]
     fn test_rc4_encryption() {
         let mut rc4 = Rc4State::new();
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        rc4.encrypt(&input, &mut output);
+        rc4.encrypt(&mut input, &mut output);
 
         assert_ne!(input, output);
     }
@@ -40,18 +40,18 @@ mod cryptography_tests {
         let (mut input, mut output) = generate_ab_arrays!(256);
 
         let original_input = input.clone();
-        rc4.encrypt(&input, &mut output);
+        rc4.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
-        rc4.decrypt(&output, &mut input);
+        rc4.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
 
     #[test]
     fn test_aes_cbc_encryption_128() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
 
         assert_ne!(input, output);
     }
@@ -63,17 +63,17 @@ mod cryptography_tests {
 
         let original_input = input.clone();
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
-        aes.decrypt(&output, &mut input);
+        aes.encrypt(&mut input, &mut output);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input); // shave off the IV
     }
 
     #[test]
     fn test_aes_ecb_encryption_128() {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S128, None);
-        let (input, mut output) = generate_ab_arrays!(16);
+        let (mut input, mut output) = generate_ab_arrays!(16);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
     }
 
@@ -82,17 +82,17 @@ mod cryptography_tests {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S128, None);
         let (mut input, mut output) = generate_ab_arrays!(16);
         let original_input = input.clone();
-        aes.encrypt(&input, &mut output);
-        aes.decrypt(&output, &mut input);
+        aes.encrypt(&mut input, &mut output);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
 
     #[test]
     fn test_aes_ctr_encryption_128() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
     }
 
@@ -102,17 +102,17 @@ mod cryptography_tests {
         let (mut input, mut output) = generate_ab_arrays!(256);
         let original_input = input.clone();
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
-        aes.decrypt(&output, &mut input);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
     #[test]
     fn test_aes_cbc_encryption_192() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S192, None);
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
 
         assert_ne!(input, output);
     }
@@ -124,19 +124,19 @@ mod cryptography_tests {
 
         let original_input = input.clone();
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
 
         assert_ne!(input, output);
-        aes.decrypt(&output, &mut input);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
 
     #[test]
     fn test_aes_ecb_encryption_192() {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S192, None);
-        let (input, mut output) = generate_ab_arrays!(16);
+        let (mut input, mut output) = generate_ab_arrays!(16);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
     }
 
@@ -145,17 +145,17 @@ mod cryptography_tests {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S192, None);
         let (mut input, mut output) = generate_ab_arrays!(16);
         let original_input = input.clone();
-        aes.encrypt(&input, &mut output);
-        aes.decrypt(&output, &mut input);
+        aes.encrypt(&mut input, &mut output);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
 
     #[test]
     fn test_aes_ctr_encryption_192() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S192, None);
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
     }
 
@@ -165,18 +165,18 @@ mod cryptography_tests {
         let (mut input, mut output) = generate_ab_arrays!(256);
         let original_input = input.clone();
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
-        aes.decrypt(&output, &mut input);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
 
     #[test]
     fn test_aes_cbc_encryption_256() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
 
         assert_ne!(input, output);
     }
@@ -188,19 +188,19 @@ mod cryptography_tests {
 
         let original_input = input.clone();
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
 
         assert_ne!(input, output);
-        aes.decrypt(&output, &mut input);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input); // shave off the IV
     }
 
     #[test]
     fn test_aes_ecb_encryption_256() {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
-        let (input, mut output) = generate_ab_arrays!(16);
+        let (mut input, mut output) = generate_ab_arrays!(16);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
     }
 
@@ -209,17 +209,17 @@ mod cryptography_tests {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
         let (mut input, mut output) = generate_ab_arrays!(16);
         let original_input = input.clone();
-        aes.encrypt(&input, &mut output);
-        aes.decrypt(&output, &mut input);
+        aes.encrypt(&mut input, &mut output);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
 
     #[test]
     fn test_aes_ctr_encryption_256() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
-        let (input, mut output) = generate_ab_arrays!(256);
+        let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
     }
 
@@ -229,9 +229,9 @@ mod cryptography_tests {
         let (mut input, mut output) = generate_ab_arrays!(256);
         let original_input = input.clone();
         assert_eq!(input, output);
-        aes.encrypt(&input, &mut output);
+        aes.encrypt(&mut input, &mut output);
         assert_ne!(input, output);
-        aes.decrypt(&output, &mut input);
+        aes.decrypt(&mut output, &mut input);
         assert_eq!(input, original_input);
     }
     /*
@@ -249,7 +249,7 @@ mod cryptography_tests {
             0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37,
             0x07, 0x34,
         ];
-        let plaintext = plaintext.to_vec();
+        let mut plaintext = plaintext.to_vec();
         let expected_ciphertext = [
             0x39, 0x25, 0x84, 0x1d, 0x02, 0xdc, 0x09, 0xfb, 0xdc, 0x11, 0x85, 0x97, 0x19, 0x6a,
             0x0b, 0x32,
@@ -258,7 +258,7 @@ mod cryptography_tests {
 
         let mut context = AESContext::new(AesMode::ECB, AesSize::S128, Some(&key));
 
-        context.encrypt(&plaintext, &mut ciphertext);
+        context.encrypt(&mut plaintext, &mut ciphertext);
 
         assert_eq!(ciphertext, expected_ciphertext);
     }
@@ -275,7 +275,7 @@ mod cryptography_tests {
             0xee, 0xff,
         ];
 
-        let plaintext = plaintext.to_vec();
+        let mut plaintext = plaintext.to_vec();
 
         let expected_ciphertext = [
             0xdd, 0xa9, 0x7c, 0xa4, 0x86, 0x4c, 0xdf, 0xe0, 0x6e, 0xaf, 0x70, 0xa0, 0xec, 0x0d,
@@ -285,7 +285,7 @@ mod cryptography_tests {
         let mut ciphertext = vec![0; 16];
 
         let mut context = AESContext::new(AesMode::ECB, AesSize::S192, Some(&key));
-        context.encrypt(&plaintext, &mut ciphertext);
+        context.encrypt(&mut plaintext, &mut ciphertext);
 
         assert_eq!(ciphertext, expected_ciphertext);
     }
@@ -300,7 +300,7 @@ mod cryptography_tests {
             0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93,
             0x17, 0x2a,
         ];
-        let plaintext = plaintext.to_vec();
+        let mut plaintext = plaintext.to_vec();
         let expected_ciphertext = [
             0xf3, 0xee, 0xd1, 0xbd, 0xb5, 0xd2, 0xa0, 0x3c, 0x06, 0x4b, 0x5a, 0x7e, 0x3d, 0xb1,
             0x81, 0xf8,
@@ -308,7 +308,7 @@ mod cryptography_tests {
         let mut ciphertext = vec![0; 16];
 
         let mut context = AESContext::new(AesMode::ECB, AesSize::S256, Some(&key));
-        context.encrypt(&plaintext, &mut ciphertext);
+        context.encrypt(&mut plaintext, &mut ciphertext);
 
         assert_eq!(ciphertext, expected_ciphertext);
     }
@@ -386,9 +386,9 @@ mod cryptography_tests {
     }
 
     /*
-        These two tests ensure we can keep encrypting (ie generating new nonces and IVs) and be able to decrypt
-        any message without the differing IVs somehow messing up internal context (ie a bug)
-     */
+       These two tests ensure we can keep encrypting (ie generating new nonces and IVs) and be able to decrypt
+       any message without the differing IVs somehow messing up internal context (ie a bug)
+    */
     #[test]
     fn test_nonce_retrieval_ctr_256() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
@@ -400,15 +400,15 @@ mod cryptography_tests {
         assert_eq!(input, output);
         assert_eq!(input2, output2);
         assert_eq!(input3, output3);
-        aes.encrypt(&input, &mut output);
-        aes.encrypt(&input2, &mut output2);
-        aes.encrypt(&input3, &mut output3);
+        aes.encrypt(&mut input, &mut output);
+        aes.encrypt(&mut input2, &mut output2);
+        aes.encrypt(&mut input3, &mut output3);
         assert_ne!(input, output);
         assert_ne!(input2, output2);
         assert_ne!(input3, output3);
-        aes.decrypt(&output, &mut input);
-        aes.decrypt(&output2, &mut input2);
-        aes.decrypt(&output3, &mut input3);
+        aes.decrypt(&mut output, &mut input);
+        aes.decrypt(&mut output2, &mut input2);
+        aes.decrypt(&mut output3, &mut input3);
         assert_eq!(input, original_input);
         assert_eq!(input2, original_input);
         assert_eq!(input3, original_input);
@@ -424,18 +424,17 @@ mod cryptography_tests {
         assert_eq!(input, output);
         assert_eq!(input2, output2);
         assert_eq!(input3, output3);
-        aes.encrypt(&input, &mut output);
-        aes.encrypt(&input2, &mut output2);
-        aes.encrypt(&input3, &mut output3);
+        aes.encrypt(&mut input, &mut output);
+        aes.encrypt(&mut input2, &mut output2);
+        aes.encrypt(&mut input3, &mut output3);
         assert_ne!(input, output);
         assert_ne!(input2, output2);
         assert_ne!(input3, output3);
-        aes.decrypt(&output, &mut input);
-        aes.decrypt(&output2, &mut input2);
-        aes.decrypt(&output3, &mut input3);
+        aes.decrypt(&mut output, &mut input);
+        aes.decrypt(&mut output2, &mut input2);
+        aes.decrypt(&mut output3, &mut input3);
         assert_eq!(input, original_input);
         assert_eq!(input2, original_input);
         assert_eq!(input3, original_input);
     }
-
 }
