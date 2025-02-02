@@ -514,14 +514,34 @@ impl AESContext {
        CBC xors each block with the previous block of plain/ciphertext
 
     */
-    fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
-        let input_len = buffer.len();
-        let output_len = output.len();
+    fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut Vec<u8>) {
+        self.generate_initialization_vector();
+        /*
+           Casting these just in case it goes negative on the subtraction operation, don't want wraparound or panic because of this
+        */
+        let input_len: i64 = buffer.len() as i64;
+        let output_len: i64 = output.capacity() as i64;
+
+        /*
+           Resize if required to store the 16 byte IV as a prefix to the rest of the data
+        */
+        if ((output_len - AES_BLOCK_LENGTH_BYTES as i64) < input_len) {
+            output.resize(((input_len as usize + AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES ), 0);
+        }
+
+        /*
+           Stuff the IV right on in there
+        */
+        for i in 0..AES_BLOCK_LENGTH_BYTES {
+            output[i] = self.initialization_vector[i];
+        }
+
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
+
         let mut initialization_vector = self.initialization_vector.clone();
 
-        for i in 0..(input_len / AES_BLOCK_LENGTH_BYTES) {
+        for i in 0..(input_len as usize / AES_BLOCK_LENGTH_BYTES) {
             for num in 0..16 {
                 current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
             }
@@ -534,20 +554,29 @@ impl AESContext {
             initialization_vector = output_slice;
 
             for (num, byte) in output_slice.iter().enumerate() {
-                output[i * AES_BLOCK_LENGTH_BYTES + num] = *byte;
+                output[(i * AES_BLOCK_LENGTH_BYTES + num) + AES_BLOCK_LENGTH_BYTES /* Account for IV by offsetting index by 16 bytes */] = *byte;
             }
         }
     }
 
     fn cbc_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
-        let len = buffer.len();
+        let mut initialization_vector = [0u8;AES_BLOCK_LENGTH_BYTES];
+        /*
+           Stuff the IV right on in there
+        */
+
+        for i in 0..AES_BLOCK_LENGTH_BYTES {
+            initialization_vector[i] = buffer[i];
+        }
+
+        let len = buffer.len() - AES_BLOCK_LENGTH_BYTES;
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
-        let mut initialization_vector = self.initialization_vector.clone();
+
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
             for num in 0..AES_BLOCK_LENGTH_BYTES {
-                current_slice[num] = buffer[i * AES_BLOCK_LENGTH_BYTES + num];
+                current_slice[num] = buffer[(i * AES_BLOCK_LENGTH_BYTES + num) + AES_BLOCK_LENGTH_BYTES/* Again, offset by the size of the IV at the beginning*/];
             }
             let next_iv = current_slice;
             self.inverted_cipher(&current_slice, &mut output_slice);
@@ -563,7 +592,7 @@ impl AESContext {
             .copy_from_slice(&initialization_vector);
     }
 
-    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]){
+    fn ctr_encrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
         let input_len = buffer.len();
         let output_len = output.len();
         let mut xor_buffer = self.initialization_vector.clone();
@@ -656,6 +685,13 @@ impl Encryption for AESContext {
     }
 
     fn decrypt(&mut self, input: &Vec<u8>, output: &mut Vec<u8>) {
+        let input_size = input.len();
+        let output_size = output.len();
+
+        if(input_size > output_size) {
+           output.resize(input_size - AES_BLOCK_LENGTH_BYTES, 0); // Shave off the IV from the input length
+        }
+        println!("{input_size} : {output_size}");
         match self.mode {
             AesMode::CBC => {
                 self.cbc_decrypt(input, output);
