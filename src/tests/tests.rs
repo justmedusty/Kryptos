@@ -384,4 +384,58 @@ mod cryptography_tests {
         ];
         assert!(context.test_round_key(&round_key_10, 10));
     }
+
+    /*
+        These two tests ensure we can keep encrypting (ie generating new nonces and IVs) and be able to decrypt
+        any message without the differing IVs somehow messing up internal context (ie a bug)
+     */
+    #[test]
+    fn test_nonce_retrieval_ctr_256() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
+        let (mut input, mut output) = generate_ab_arrays!(256);
+        let (mut input2, mut output2) = generate_ab_arrays!(256);
+        let (mut input3, mut output3) = generate_ab_arrays!(256);
+
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        assert_eq!(input2, output2);
+        assert_eq!(input3, output3);
+        aes.encrypt(&input, &mut output);
+        aes.encrypt(&input2, &mut output2);
+        aes.encrypt(&input3, &mut output3);
+        assert_ne!(input, output);
+        assert_ne!(input2, output2);
+        assert_ne!(input3, output3);
+        aes.decrypt(&output, &mut input);
+        aes.decrypt(&output2, &mut input2);
+        aes.decrypt(&output3, &mut input3);
+        assert_eq!(input, original_input);
+        assert_eq!(input2, original_input);
+        assert_eq!(input3, original_input);
+    }
+    #[test]
+    fn test_nonce_retrieval_cbc_256() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
+        let (mut input, mut output) = generate_ab_arrays!(256);
+        let (mut input2, mut output2) = generate_ab_arrays!(256);
+        let (mut input3, mut output3) = generate_ab_arrays!(256);
+
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        assert_eq!(input2, output2);
+        assert_eq!(input3, output3);
+        aes.encrypt(&input, &mut output);
+        aes.encrypt(&input2, &mut output2);
+        aes.encrypt(&input3, &mut output3);
+        assert_ne!(input, output);
+        assert_ne!(input2, output2);
+        assert_ne!(input3, output3);
+        aes.decrypt(&output, &mut input);
+        aes.decrypt(&output2, &mut input2);
+        aes.decrypt(&output3, &mut input3);
+        assert_eq!(input, original_input);
+        assert_eq!(input2, original_input);
+        assert_eq!(input3, original_input);
+    }
+
 }
