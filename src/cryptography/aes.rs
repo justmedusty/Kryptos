@@ -606,7 +606,16 @@ impl AESContext {
         let mut input_len: i64 = buffer.len() as i64;
         let output_len: i64 = output.capacity() as i64;
 
-        if (!decrypt) {
+        /*
+           We need to treat encryption and decryption different.
+           On encryption, we need to generate a new nonce to use as a counter.
+           On decryption we need to extract the nonce from the prefix of the input buffer (first 16 bytes)
+        */
+        if (decrypt) {
+            for i in 0..AES_BLOCK_LENGTH_BYTES {
+                xor_buffer[i] = buffer[i];
+            }
+        } else {
             self.generate_initialization_vector();
 
             /*
@@ -623,10 +632,6 @@ impl AESContext {
                 output[i] = self.initialization_vector[i];
             }
             xor_buffer = self.initialization_vector.clone();
-        } else {
-            for i in 0..AES_BLOCK_LENGTH_BYTES {
-                xor_buffer[i] = buffer[i];
-            }
         }
 
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];

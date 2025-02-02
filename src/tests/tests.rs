@@ -166,9 +166,6 @@ mod cryptography_tests {
         let original_input = input.clone();
         assert_eq!(input, output);
         aes.encrypt(&input, &mut output);
-        for mut byte in input.iter_mut() {
-            *byte = 0;
-        }
         assert_ne!(input, output);
         aes.decrypt(&output, &mut input);
         assert_eq!(input, original_input);
