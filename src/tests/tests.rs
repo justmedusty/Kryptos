@@ -65,7 +65,7 @@ mod cryptography_tests {
         assert_eq!(input, output);
         aes.encrypt(&input, &mut output);
         aes.decrypt(&output, &mut input);
-        assert_eq!(input[0..256], original_input); // shave off the IV
+        assert_eq!(input, original_input); // shave off the IV
     }
 
     #[test]
@@ -128,7 +128,7 @@ mod cryptography_tests {
 
         assert_ne!(input, output);
         aes.decrypt(&output, &mut input);
-        assert_eq!(input[0..256], original_input); // shave off the IV
+        assert_eq!(input, original_input);
     }
 
     #[test]
@@ -192,7 +192,7 @@ mod cryptography_tests {
 
         assert_ne!(input, output);
         aes.decrypt(&output, &mut input);
-        assert_eq!(input[0..256], original_input); // shave off the IV
+        assert_eq!(input, original_input); // shave off the IV
     }
 
     #[test]

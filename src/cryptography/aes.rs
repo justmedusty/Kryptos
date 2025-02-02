@@ -515,6 +515,9 @@ impl AESContext {
 
     */
     fn cbc_encrypt(&mut self, buffer: &[u8], output: &mut Vec<u8>) {
+        /*
+           Generate a fresh IV every encryption operation
+        */
         self.generate_initialization_vector();
         /*
            Casting these just in case it goes negative on the subtraction operation, don't want wraparound or panic because of this
@@ -526,7 +529,10 @@ impl AESContext {
            Resize if required to store the 16 byte IV as a prefix to the rest of the data
         */
         if ((output_len - AES_BLOCK_LENGTH_BYTES as i64) < input_len) {
-            output.resize(((input_len as usize + AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES ), 0);
+            output.resize(
+                (input_len as usize + AES_BLOCK_LENGTH_BYTES),
+                0,
+            );
         }
 
         /*
@@ -554,13 +560,14 @@ impl AESContext {
             initialization_vector = output_slice;
 
             for (num, byte) in output_slice.iter().enumerate() {
-                output[(i * AES_BLOCK_LENGTH_BYTES + num) + AES_BLOCK_LENGTH_BYTES /* Account for IV by offsetting index by 16 bytes */] = *byte;
+                output[(i * AES_BLOCK_LENGTH_BYTES + num) + AES_BLOCK_LENGTH_BYTES /* Account for IV by offsetting index by 16 bytes */] =
+                    *byte;
             }
         }
     }
 
     fn cbc_decrypt(&mut self, buffer: &[u8], output: &mut [u8]) {
-        let mut initialization_vector = [0u8;AES_BLOCK_LENGTH_BYTES];
+        let mut initialization_vector = [0u8; AES_BLOCK_LENGTH_BYTES];
         /*
            Stuff the IV right on in there
         */
@@ -572,7 +579,6 @@ impl AESContext {
         let len = buffer.len() - AES_BLOCK_LENGTH_BYTES;
         let mut current_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
         let mut output_slice = [0u8; AES_BLOCK_LENGTH_BYTES];
-
 
         for i in 0..(len / AES_BLOCK_LENGTH_BYTES) {
             for num in 0..AES_BLOCK_LENGTH_BYTES {
@@ -688,8 +694,8 @@ impl Encryption for AESContext {
         let input_size = input.len();
         let output_size = output.len();
 
-        if(input_size > output_size) {
-           output.resize(input_size - AES_BLOCK_LENGTH_BYTES, 0); // Shave off the IV from the input length
+        if (input_size > output_size) {
+            output.resize(input_size - AES_BLOCK_LENGTH_BYTES, 0); // Shave off the IV from the input length
         }
         println!("{input_size} : {output_size}");
         match self.mode {
