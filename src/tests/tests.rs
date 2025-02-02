@@ -6,8 +6,8 @@ mod cryptography_tests {
 
     macro_rules! generate_ab_arrays {
         ($size:expr) => {{
-            let mut input = [0u8; $size];
-            let mut output = [0u8; $size];
+            let mut input = vec![0; $size];
+            let mut output = vec![0; $size];
 
             for i in 0..$size {
                 if i % 2 == 0 {
@@ -247,15 +247,16 @@ mod cryptography_tests {
             0x4f, 0x3c,
         ];
 
-        let plaintext = [
+        let plaintext: [u8;16] = [
             0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37,
             0x07, 0x34,
         ];
+        let plaintext = plaintext.to_vec();
         let expected_ciphertext = [
             0x39, 0x25, 0x84, 0x1d, 0x02, 0xdc, 0x09, 0xfb, 0xdc, 0x11, 0x85, 0x97, 0x19, 0x6a,
             0x0b, 0x32,
         ];
-        let mut ciphertext = [0u8; 16];
+        let mut ciphertext = vec![0;16];
 
         let mut context = AESContext::new(AesMode::ECB, AesSize::S128, Some(&key));
 
@@ -277,12 +278,14 @@ mod cryptography_tests {
             0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
         ];
 
+        let plaintext = plaintext.to_vec();
+
         let expected_ciphertext = [
             0xdd, 0xa9, 0x7c, 0xa4, 0x86, 0x4c, 0xdf, 0xe0,
             0x6e, 0xaf, 0x70, 0xa0, 0xec, 0x0d, 0x71, 0x91,
         ];
 
-        let mut ciphertext = [0u8; 16];
+        let mut ciphertext = vec![0;16];
 
         let mut context = AESContext::new(AesMode::ECB, AesSize::S192, Some(&key));
         context.encrypt(&plaintext, &mut ciphertext);
@@ -300,11 +303,12 @@ mod cryptography_tests {
             0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93,
             0x17, 0x2a,
         ];
+        let plaintext = plaintext.to_vec();
         let expected_ciphertext = [
             0xf3, 0xee, 0xd1, 0xbd, 0xb5, 0xd2, 0xa0, 0x3c, 0x06, 0x4b, 0x5a, 0x7e, 0x3d, 0xb1,
             0x81, 0xf8,
         ];
-        let mut ciphertext = [0u8; 16];
+        let mut ciphertext = vec![0;16];
 
         let mut context = AESContext::new(AesMode::ECB, AesSize::S256, Some(&key));
         context.encrypt(&plaintext, &mut ciphertext);
