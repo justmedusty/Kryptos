@@ -59,7 +59,7 @@ pub fn print_vec(buffer: &[u8]) {
 }
 pub trait ServerFunctions {
     fn read_from_connection(&mut self) -> usize;
-    fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>);
+    fn write_from_passed_buffer(&mut self, buffer: &mut Vec<u8>);
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
 
@@ -118,17 +118,17 @@ impl ServerFunctions for TelnetServerConnection {
 
         self.encryption_context
             .context
-            .decrypt(&encrypted_buffer, &mut self.read_buffer);
+            .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
 
         write_to_log!(self);
         ret
     }
 
-    fn write_from_passed_buffer(&mut self, buffer: &Vec<u8>) {
+    fn write_from_passed_buffer(&mut self, mut buffer: &mut Vec<u8>) {
         let mut encrypted_buffer = buffer.clone();
         self.encryption_context
             .context
-            .encrypt(buffer, &mut encrypted_buffer);
+            .encrypt(&mut buffer, &mut encrypted_buffer);
         match self.stream.write_all(&encrypted_buffer) {
             Ok(x) => x,
             Err(_) => return,
@@ -148,7 +148,7 @@ impl ServerFunctions for TelnetServerConnection {
         }
 
         let message = message.unwrap();
-        self.write_from_passed_buffer(&message.as_bytes().to_vec());
+        self.write_from_passed_buffer(&mut message.as_bytes().to_vec());
         self.flush_read_buffer();
     }
 
@@ -214,7 +214,7 @@ impl ServerFunctions for TelnetServerConnection {
 
         self.encryption_context
             .context
-            .decrypt(&encrypted_buffer, &mut self.read_buffer);
+            .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
 
         write_to_log!(self);
         ret
@@ -254,7 +254,7 @@ pub fn open_telnet_connection(
 Broadcast message to every connection in the active pool except the one who sent it
 */
 
-pub fn broadcast_message(message: &Vec<u8>, source: u64, pool: &ConnectionPool) {
+pub fn broadcast_message(message: &mut Vec<u8>, source: u64, pool: &ConnectionPool) {
     let pool_ref = pool.read().unwrap();
 
     for connection in pool_ref.iter() {
@@ -282,7 +282,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
     loop {
         let mut conn = connection.write().unwrap();
         if !greeted {
-            conn.write_from_passed_buffer(&GREETING.as_bytes().to_vec());
+            conn.write_from_passed_buffer(&mut GREETING.as_bytes().to_vec());
         }
 
         greeted = true;
@@ -310,14 +310,14 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
             name.truncate(length);
             println!("New connection: {}", name);
 
-            conn.write_from_passed_buffer(&SUCCESS_STRING.as_bytes().to_vec());
+            conn.write_from_passed_buffer(&mut SUCCESS_STRING.as_bytes().to_vec());
 
             conn.set_name(name);
             username = conn.name.clone();
             break;
         }
 
-        conn.write_from_passed_buffer(&INVALID_NAME.as_bytes().to_vec());
+        conn.write_from_passed_buffer(&mut INVALID_NAME.as_bytes().to_vec());
     }
     /*
        Once user has provided a valid username we will insert into the pool and broadcast a message to all other connected parties
@@ -339,8 +339,8 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
     }
 
     let message = format!("{} has joined\n", username);
-    let message_vec = message.into_bytes();
-    broadcast_message(&message_vec, count as u64, &pool);
+    let mut message_vec = message.into_bytes();
+    broadcast_message(&mut message_vec, count as u64, &pool);
     true
 }
 
@@ -383,7 +383,7 @@ pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
             }
             drop(conn);
 
-            broadcast_message(&read_buffer, connection_id, &pool);
+            broadcast_message(&mut read_buffer, connection_id, &pool);
 
             let mut conn = match connection.write() {
                 Ok(x) => x,
@@ -407,8 +407,8 @@ pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
         drop(pool_unlocked);
 
         let message = format!("{} has left\n", name);
-        let message_vec = message.into_bytes();
-        broadcast_message(&message_vec, conn_id, &pool);
+        let mut message_vec = message.into_bytes();
+        broadcast_message(&mut message_vec, conn_id, &pool);
         return;
     });
 }
