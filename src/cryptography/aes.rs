@@ -462,7 +462,7 @@ impl AESContext {
     /*
        Generate a new IV to be used
     */
-    fn generate_initialization_vector(&mut self){
+    fn generate_initialization_vector(&mut self) {
         rand::fill(&mut self.initialization_vector);
     }
 
@@ -597,11 +597,11 @@ impl AESContext {
         /*
            Generate a fresh IV every encryption operation
         */
-        let mut xor_buffer = [0; 16];
+        let mut xor_buffer;
         /*
            Casting these just in case it goes negative on the subtraction operation, don't want wraparound or panic because of this
         */
-        let mut input_len: i64 = buffer.len() as i64;
+        let input_len: i64 = buffer.len() as i64;
         let output_len: i64 = output.capacity() as i64;
 
         /*
@@ -657,7 +657,7 @@ impl AESContext {
         /*
            Casting these just in case it goes negative on the subtraction operation, don't want wraparound or panic because of this
         */
-        let mut input_len: i64 = buffer.len() as i64;
+        let input_len: i64 = buffer.len() as i64;
         /*
            We need to treat encryption and decryption different.
            On encryption, we need to generate a new nonce to use as a counter.
@@ -739,7 +739,7 @@ impl Encryption for AESContext {
         /*
            Ensure input is block size aligned
         */
-        if (input_cap % AES_BLOCK_LENGTH_BYTES != 0) {
+        if input_cap % AES_BLOCK_LENGTH_BYTES != 0 {
             let diff = (input_cap + AES_BLOCK_LENGTH_BYTES) % AES_BLOCK_LENGTH_BYTES;
             for _ in 0..(AES_BLOCK_LENGTH_BYTES - diff) {
                 input.push(0);
