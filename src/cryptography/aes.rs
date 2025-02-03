@@ -465,6 +465,7 @@ impl AESContext {
     fn generate_initialization_vector(&mut self) -> [u8; AES_BLOCK_LENGTH_BYTES] {
         let mut buffer = [0u8; AES_BLOCK_LENGTH_BYTES];
         rand::fill(&mut buffer);
+        self.initialization_vector = buffer;
         buffer
     }
 

@@ -437,4 +437,23 @@ mod cryptography_tests {
         assert_eq!(input2, original_input);
         assert_eq!(input3, original_input);
     }
+
+    #[test]
+    fn test_nonce_differences_cbc_256() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
+        let (mut input, mut output) = generate_ab_arrays!(256);
+        let (mut input2, mut output2) = generate_ab_arrays!(256);
+        let (mut input3, mut output3) = generate_ab_arrays!(256);
+
+        let original_input = input.clone();
+        assert_eq!(input, output);
+        assert_eq!(input2, output2);
+        assert_eq!(input3, output3);
+        aes.encrypt(&mut input, &mut output);
+        aes.encrypt(&mut input2, &mut output2);
+        aes.encrypt(&mut input3, &mut output3);
+        assert_ne!(output, output2);
+        assert_ne!(output3, output2);
+        assert_ne!(output, output3);
+    }
 }
