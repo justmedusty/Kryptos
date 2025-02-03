@@ -670,7 +670,7 @@ impl AESContext {
 
         let mut counter_index = AES_BLOCK_LENGTH_BYTES; // Counter index
 
-        let mut counter = u128::from_be_bytes(self.initialization_vector);
+        let mut counter = u128::from_be_bytes(xor_buffer);
 
         for i in 0..input_len as usize - 16usize {
             if counter_index == AES_BLOCK_LENGTH_BYTES {
