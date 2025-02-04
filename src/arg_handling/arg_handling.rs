@@ -27,14 +27,14 @@ pub mod arg_handling {
 
     pub fn parse_arguments(args: Vec<String>) -> KryptosConfig {
         let use_key: bool = args.len() == 5;
-        if (args.len() > 4) {
+        if (args.len() > 5) {
             println!("Too many arguments!");
             println!("Usage: kryptos port encryption-type key-size (optional provided key, generated otherwise)");
             println!("Try --help for help.");
             exit(ERROR);
         }
 
-        if { args.len() < 4 } {
+        if { args.len() < 2 } {
             println!("Usage: kryptos port encryption-type key-size (optional provided key, generated otherwise)");
             println!("Try --help for help.");
             exit(ERROR);
@@ -72,7 +72,7 @@ pub mod arg_handling {
             }
         };
 
-        let size: KeySize = match args[2].parse::<usize>() {
+        let size: KeySize = match args[3].parse::<usize>() {
             Ok(128) => KeySize::Size128,
             Ok(192) => KeySize::Size192,
             Ok(256) => KeySize::Size256,
@@ -86,7 +86,9 @@ pub mod arg_handling {
             }
         };
 
-        let encryption_type = match args[3].as_str() {
+        let size_usize = args[3].parse::<usize>().unwrap();
+
+        let encryption_type = match args[2].as_str() {
             "AesCbc" => EncryptionInfo::AesCbc,
             "AesCtr" => EncryptionInfo::AesCtr,
             "AesEcb" => EncryptionInfo::AesEcb,
@@ -97,6 +99,20 @@ pub mod arg_handling {
                 exit(ERROR);
             }
         };
+        let optional_key = match use_key {
+            true => Some(args[4].to_string()),
+            false => None,
+        };
+        let actual_size = match &optional_key {
+            Some(x) => x.len(),
+            None => 0,
+        };
+
+        if (optional_key.is_some() && optional_key.unwrap().len() * 8 != size_usize) {
+            eprintln!("Invalid optional key!");
+            eprintln!("You specified the size as {size_usize} but the given length was {}!", actual_size * 8);
+            exit(ERROR);
+        }
 
         let config = KryptosConfig {
             enc_type: encryption_type,
