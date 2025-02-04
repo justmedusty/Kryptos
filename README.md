@@ -1,3 +1,5 @@
+Client : https://github.com/justmedusty/Kryptos-Client/tree/master
+
 An encrypted rust telnet chat server.
 
 Takes usernames on entry and broadcasts join and leave messages with the users given name.
