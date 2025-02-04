@@ -1,19 +1,24 @@
+use crate::arg_handling::arg_handling::arg_handling::parse_arguments;
 use crate::cryptography::rc4::KEY_SIZE_BYTES;
 use crate::telnet::{spawn_server_thread, ConnectionPool};
 use rand::distr::Alphanumeric;
 use rand::Rng;
+use std::env;
 use std::net::TcpListener;
 use std::sync::{Arc, RwLock};
 use telnet::{open_telnet_connection, ServerFunctions};
 /*
    Declare submodules
 */
+mod arg_handling;
 mod cryptography;
 mod telnet;
 mod tests;
 
 static PORT: u64 = 6969;
 
+const ERROR: i32 = 1;
+const SUCCESS: i32 = 0;
 const GREETING: &'static str = "Welcome to the server, what will your username be? :";
 const INVALID_NAME: &'static str = "That is not a valid username. What will your username be? :";
 const SUCCESS_STRING: &'static str = "Username is valid, joining session\n";
@@ -37,6 +42,23 @@ fn generate_session_token() -> String {
    Main loop, binds to all addresses possible, listens for connections and spawns threads on each new connection
 */
 fn main() {
+    let mut port = 0;
+    let args: Vec<String> = env::args().collect();
+    let config = parse_arguments(args);
+    let session_token : String;
+
+    /*
+        Key will be validated inside parse_arguments function
+     */
+    match config.optional_key {
+        None => {
+            session_token = generate_session_token();
+        }
+        Some(key) => {
+            session_token = key;
+        }
+    }
+
     let session_token = generate_session_token();
     println!("Starting telnet server...");
     println!("Session token: {}", session_token);
