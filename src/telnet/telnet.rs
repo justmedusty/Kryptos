@@ -1,4 +1,6 @@
-use crate::cryptography::cryptography::{ EncryptionContext};
+use crate::arg_handling::arg_handling::arg_handling::{EncryptionInfo, KeySize};
+use crate::cryptography::aes::{AESContext, AesMode, AesSize};
+use crate::cryptography::cryptography::EncryptionContext;
 use crate::cryptography::rc4::Rc4State;
 use crate::{GREETING, INVALID_NAME, PORT, SUCCESS_STRING};
 use std::collections::VecDeque;
@@ -39,7 +41,7 @@ impl TelnetServerConnection {
             stream,
             read_buffer: vec![0; 4096],
             name: "".to_string(),
-            encryption_context: EncryptionContext::new(Rc4State::new()),
+            encryption_context: EncryptionContext::new(Rc4State::new(None)),
             log: false,
             log_file: None,
         };
@@ -223,14 +225,75 @@ impl ServerFunctions for TelnetServerConnection {
 /*
    Open connection sets up a new TelnetServerConnection object with the new connection found on the listener.
 */
+
 pub fn open_telnet_connection(
     listener: Arc<RwLock<TcpListener>>,
     session_key: String,
+    encryption_type: EncryptionInfo,
+    key_size: KeySize,
 ) -> TelnetServerConnection {
     let listener = listener.read().unwrap();
     let (tcp_conn, sock_addr) = listener.accept().expect("Failed to accept connection");
 
     let read_buff = vec![0u8; 4096];
+    let new_encryption_context = match encryption_type {
+        EncryptionInfo::AesCbc => match key_size {
+            KeySize::Size128 => EncryptionContext::new(AESContext::new(
+                AesMode::CBC,
+                AesSize::S128,
+                Some(session_key.as_bytes()),
+            )),
+            KeySize::Size192 => EncryptionContext::new(AESContext::new(
+                AesMode::CBC,
+                AesSize::S192,
+                Some(session_key.as_bytes()),
+            )),
+            KeySize::Size256 => EncryptionContext::new(AESContext::new(
+                AesMode::CBC,
+                AesSize::S256,
+                Some(session_key.as_bytes()),
+            )),
+        },
+        EncryptionInfo::AesCtr => match key_size {
+            KeySize::Size128 => EncryptionContext::new(AESContext::new(
+                AesMode::CTR,
+                AesSize::S128,
+                Some(session_key.as_bytes()),
+            )),
+            KeySize::Size192 => EncryptionContext::new(AESContext::new(
+                AesMode::CTR,
+                AesSize::S192,
+                Some(session_key.as_bytes()),
+            )),
+            KeySize::Size256 => EncryptionContext::new(AESContext::new(
+                AesMode::CTR,
+                AesSize::S256,
+                Some(session_key.as_bytes()),
+            )),
+        },
+        EncryptionInfo::AesEcb => match key_size {
+            KeySize::Size128 => EncryptionContext::new(AESContext::new(
+                AesMode::ECB,
+                AesSize::S128,
+                Some(session_key.as_bytes()),
+            )),
+            KeySize::Size192 => EncryptionContext::new(AESContext::new(
+                AesMode::ECB,
+                AesSize::S192,
+                Some(session_key.as_bytes()),
+            )),
+            KeySize::Size256 => EncryptionContext::new(AESContext::new(
+                AesMode::ECB,
+                AesSize::S256,
+                Some(session_key.as_bytes()),
+            )),
+        },
+        EncryptionInfo::Rc4 => match key_size {
+            KeySize::Size128 => EncryptionContext::new(Rc4State::new(Some(session_key.as_bytes()))),
+            KeySize::Size192 => EncryptionContext::new(Rc4State::new(Some(session_key.as_bytes()))),
+            KeySize::Size256 => EncryptionContext::new(Rc4State::new(Some(session_key.as_bytes()))),
+        },
+    };
 
     let mut server_connection = TelnetServerConnection {
         connection_id: 0,
@@ -238,13 +301,14 @@ pub fn open_telnet_connection(
         socket_addr: sock_addr,
         read_buffer: read_buff,
         name: "".to_string(),
-        encryption_context: EncryptionContext::new(Rc4State::new()),
+        encryption_context: new_encryption_context,
         log: false,
         log_file: None,
     };
 
     server_connection
-        .encryption_context.context
+        .encryption_context
+        .context
         .set_key(session_key.as_bytes());
 
     server_connection
@@ -348,7 +412,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
    Main server loop, socket is nonblocking so that it will not stay blocked while inside a locked context (this would break the broadcast function) , broadcasts on leave so others are alerted
 */
 pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
-    std::thread::spawn(move ||loop {
+    std::thread::spawn(move || loop {
         let (mut read_buffer, mut connection_id, mut val);
         let result = handle_new_connection(connection.clone(), pool.clone());
 

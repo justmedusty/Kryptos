@@ -5,14 +5,16 @@ pub mod arg_handling {
     /*
        Enum we will use to pass encryption info for creation of context
     */
-    enum EncryptionInfo {
+    #[derive(Clone, Copy)]
+    pub enum EncryptionInfo {
         AesCbc,
         AesCtr,
         AesEcb,
         Rc4,
     }
 
-    enum KeySize {
+    #[derive(Clone, Copy)]
+    pub enum KeySize {
         Size128,
         Size192,
         Size256,

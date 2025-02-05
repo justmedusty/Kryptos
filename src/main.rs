@@ -54,12 +54,13 @@ fn main() {
         None => {
             session_token = generate_session_token();
         }
-        Some(key) => {
-            session_token = key;
+        Some(ref key) => {
+            session_token = key.clone();
         }
     }
-
-    let session_token = generate_session_token();
+    port = config.port;
+    let key_size = config.key_size;
+    let encryption_type = config.enc_type;
     println!("Starting telnet server...");
     println!("Session token: {}", session_token);
     let conn_pool = ConnectionPool::new(RwLock::new(Default::default()));
@@ -70,7 +71,7 @@ fn main() {
     loop {
         let curr = Arc::clone(&reference);
 
-        let mut server_connection = open_telnet_connection(curr, session_token.clone());
+        let mut server_connection = open_telnet_connection(curr, session_token.clone(),encryption_type,key_size);
 
         println!(
             "Accepted connection from {}",
