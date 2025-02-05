@@ -6,6 +6,16 @@ Takes usernames on entry and broadcasts join and leave messages with the users g
 
 All messages are prepended with the users name to make a busy chatroom readable.
 
-Features an RC4 & AES cipher implementation for encrypting communication (RC4 is no longer considered secure this is just for learning/fun purposes)
+Cryptography offerings so far :
+RC4 (Unsafe)
+AES ECB (Unsafe)
+AES CTR
+AES CBC
 
-This is just my pet project for learning rust.
+Planned offerings :
+ChaCha,
+Salsa,
+RSA,
+ECC Algos
+
+This is just my pet project for learning rust and cryptography better.
