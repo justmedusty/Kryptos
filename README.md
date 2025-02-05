@@ -13,8 +13,9 @@ AES CTR
 AES CBC
 
 Planned offerings :
-ChaCha
-Salsa
-RSA, ECC Algos
+ChaCha,
+Salsa,
+RSA,
+ECC Algos
 
 This is just my pet project for learning rust and cryptography better.
