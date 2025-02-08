@@ -45,11 +45,11 @@ fn main() {
     let mut port = 0;
     let args: Vec<String> = env::args().collect();
     let config = parse_arguments(args);
-    let session_token : String;
+    let session_token: String;
 
     /*
-        Key will be validated inside parse_arguments function
-     */
+       Key will be validated inside parse_arguments function
+    */
     match config.optional_key {
         None => {
             session_token = generate_session_token();
@@ -62,7 +62,7 @@ fn main() {
     let key_size = config.key_size;
     let encryption_type = config.enc_type;
     println!("Starting telnet server...");
-    println!("Session token: {}", session_token);
+    println!("Session key: {}", session_token);
     let conn_pool = ConnectionPool::new(RwLock::new(Default::default()));
     let server_listener: TcpListener = TcpListener::bind(format!("0.0.0.0:{}", PORT)).unwrap();
     let reference = Arc::new(RwLock::new(server_listener));
@@ -71,7 +71,8 @@ fn main() {
     loop {
         let curr = Arc::clone(&reference);
 
-        let mut server_connection = open_telnet_connection(curr, session_token.clone(),encryption_type,key_size);
+        let mut server_connection =
+            open_telnet_connection(curr, session_token.clone(), encryption_type, key_size);
 
         println!(
             "Accepted connection from {}",
