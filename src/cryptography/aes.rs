@@ -428,7 +428,10 @@ impl AESContext {
         self.add_round_key(num_rounds, &mut state);
 
         let result = from_2d_array(&state);
-        output.copy_from_slice(&result);
+
+        for i in 0..AES_BLOCK_LENGTH_BYTES {
+            output[i] = result[i];
+        }
     }
 
     fn inverted_cipher(&mut self, buffer: &[u8], output: &mut [u8]) {
@@ -794,7 +797,6 @@ impl Encryption for AESContext {
                 self.ctr_decrypt(input, output);
             }
         }
-
 
         if (!ctr) {
             let len = output.len();

@@ -531,7 +531,11 @@ mod cryptography_tests {
         let mut buff = vec![0u8; message.len()];
 
         encryption_context.context.encrypt(&mut message,&mut buff);
-
+        for byte in &buff {
+            print!("{}", *byte as char);
+        }
+        println!();
+        println!("Done");
         consumer.write_all(&buff).unwrap();
     }
 
@@ -603,11 +607,152 @@ mod cryptography_tests {
             assert!(decryption_buffer[i].is_ascii());
         }
     }
+    fn test_padding_removal_aes_ctr_128() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
+        let mut aes2 = AESContext::new(AesMode::CTR, AesSize::S128, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 32];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+    fn test_padding_removal_aes_ctr_192() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S192, None);
+        let mut aes2 = AESContext::new(AesMode::CTR, AesSize::S192, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 32];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+
+    fn test_padding_removal_aes_ctr_256() {
+        let mut aes = AESContext::new(AesMode::CTR, AesSize::S256, None);
+        let mut aes2 = AESContext::new(AesMode::CTR, AesSize::S256, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 32];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+
+    fn test_padding_removal_aes_ecb_128() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S128, None);
+        let mut aes2 = AESContext::new(AesMode::ECB, AesSize::S128, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 32];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+    fn test_padding_removal_aes_ecb_192() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S192, None);
+        let mut aes2 = AESContext::new(AesMode::ECB, AesSize::S192, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 32];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+
+    fn test_padding_removal_aes_ecb_256() {
+        let mut aes = AESContext::new(AesMode::ECB, AesSize::S256, None);
+        let mut aes2 = AESContext::new(AesMode::ECB, AesSize::S256, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 32];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii_alphabetic());
+        }
+    }
 
     #[test]
     fn test_padding_removal() {
         test_padding_removal_aes_cbc_128();
         test_padding_removal_aes_cbc_192();
         test_padding_removal_aes_cbc_256();
+        test_padding_removal_aes_ctr_128();
+        test_padding_removal_aes_ctr_192();
+        test_padding_removal_aes_ctr_256();
+        test_padding_removal_aes_ecb_128();
+        test_padding_removal_aes_ecb_192();
+        test_padding_removal_aes_ecb_256();
     }
 }

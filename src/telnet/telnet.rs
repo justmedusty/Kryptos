@@ -61,6 +61,7 @@ pub fn print_vec(buffer: &[u8]) {
 }
 pub trait ServerFunctions {
     fn read_from_connection(&mut self) -> usize;
+    fn write_from_passed_encrypted_buffer(&mut self, buffer: &mut Vec<u8>);
     fn write_from_passed_buffer(&mut self, buffer: &mut Vec<u8>);
     fn fetch_address(&mut self) -> SocketAddr;
     fn send_closing_message_and_disconnect(&mut self, message: Option<String>);
@@ -124,6 +125,13 @@ impl ServerFunctions for TelnetServerConnection {
 
         write_to_log!(self);
         ret
+    }
+
+    fn write_from_passed_encrypted_buffer(&mut self, buffer: &mut Vec<u8>) {
+        match self.stream.write_all(&buffer) {
+            Ok(x) => x,
+            Err(_) => return,
+        };
     }
 
     fn write_from_passed_buffer(&mut self, mut buffer: &mut Vec<u8>) {
@@ -205,7 +213,7 @@ impl ServerFunctions for TelnetServerConnection {
             Ok(0) => 0,
             Ok(x) => x,
             Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => {
-                // Connection was reset (dropped by peer)
+                //Connection was reset (dropped by peer)
                 return 0;
             }
             Err(_) => {
