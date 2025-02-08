@@ -816,4 +816,8 @@ impl Encryption for AESContext {
         }
         self.key_expansion();
     }
+
+    fn get_key(&self) -> &[u8] {
+         &self.key
+    }
 }

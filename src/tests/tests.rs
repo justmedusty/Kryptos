@@ -1,8 +1,11 @@
 #[cfg(test)]
 mod cryptography_tests {
+    use std::io::{Read, Write};
     use crate::cryptography::aes::*;
-    use crate::cryptography::cryptography::Encryption;
+    use crate::cryptography::cryptography::{Encryption, EncryptionContext};
     use crate::cryptography::rc4::Rc4State;
+    use std::net::{TcpListener, TcpStream};
+    use std::thread::spawn;
 
     macro_rules! generate_ab_arrays {
         ($size:expr) => {{
@@ -25,7 +28,7 @@ mod cryptography_tests {
     ///This test just ensures that the encryption function does in fact encrypt the plaintext input
     #[test]
     fn test_rc4_encryption() {
-        let mut rc4 = Rc4State::new();
+        let mut rc4 = Rc4State::new(None);
         let (mut input, mut output) = generate_ab_arrays!(256);
         assert_eq!(input, output);
         rc4.encrypt(&mut input, &mut output);
@@ -36,7 +39,7 @@ mod cryptography_tests {
     //This test just ensures that the decryption function actually decrypts , and brings back the original plaintext message
     #[test]
     fn test_rc4_decryption() {
-        let mut rc4 = Rc4State::new();
+        let mut rc4 = Rc4State::new(None);
         let (mut input, mut output) = generate_ab_arrays!(256);
 
         let original_input = input.clone();
@@ -520,5 +523,86 @@ mod cryptography_tests {
         assert_ne!(output, output2);
         assert_ne!(output3, output2);
         assert_ne!(output, output3);
+    }
+
+    fn client_test_helper(mut encryption_context: EncryptionContext) {
+        let mut consumer = TcpStream::connect("127.0.0.1:6969").unwrap();
+        let mut message = "Hello this is a test".as_bytes().to_vec();
+        let mut buff = vec![0u8; message.len()];
+
+        encryption_context.context.encrypt(&mut message,&mut buff);
+
+        consumer.write_all(&buff).unwrap();
+    }
+
+    #[test]
+    fn test_padding_removal_aes_cbc_128() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
+        let mut aes2 = AESContext::new(AesMode::CBC, AesSize::S128, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 4096];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+    #[test]
+    fn test_padding_removal_aes_cbc_192() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S192, None);
+        let mut aes2 = AESContext::new(AesMode::CBC, AesSize::S192, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 4096];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
+    }
+
+    #[test]
+    fn test_padding_removal_aes_cbc_256() {
+        let mut aes = AESContext::new(AesMode::CBC, AesSize::S256, None);
+        let mut aes2 = AESContext::new(AesMode::CBC, AesSize::S256, None);
+        aes2.set_key(aes.get_key());
+        let mut encryption_context = EncryptionContext::new(aes2);
+        let mut buffer = vec![0; 4096];
+
+        let loopback_conn = TcpListener::bind("127.0.0.1:6969").unwrap();
+        let thread = spawn(|| {
+            client_test_helper(encryption_context);
+        });
+        thread.join().unwrap();
+        let mut server = loopback_conn.accept().unwrap().0;
+        let bytes = server.read(&mut buffer).unwrap();
+        let mut decryption_buffer = vec![0; bytes];
+        aes.decrypt(&mut buffer, &mut decryption_buffer);
+
+        for i in 0..decryption_buffer.len() {
+            print!("{}", decryption_buffer[i] as char);
+            assert!(decryption_buffer[i].is_ascii());
+        }
     }
 }
