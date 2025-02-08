@@ -756,9 +756,8 @@ impl Encryption for AESContext {
     fn encrypt(&mut self, input: &mut Vec<u8>, output: &mut Vec<u8>) {
         let ctr: bool = self.mode == AesMode::CTR;
         if (!ctr) {
-            let len = input.len();
+            let mut len = input.len();
             let padding_len = AES_BLOCK_LENGTH_BYTES - (len % AES_BLOCK_LENGTH_BYTES);
-
             for _ in 0..padding_len {
                 input.push(padding_len as u8);
             }
@@ -795,7 +794,21 @@ impl Encryption for AESContext {
                 self.ctr_decrypt(input, output);
             }
         }
-        if (ctr == false) {
+
+
+        if (!ctr) {
+            let len = output.len();
+
+            for i in 0..len {
+                if (output[i] == 0) {
+                    output.resize(i, 0);
+                    break;
+                }
+            }
+            if (len % AES_BLOCK_LENGTH_BYTES) != 0 {
+                output.resize(len - (len % AES_BLOCK_LENGTH_BYTES), 0);
+            }
+
             if let Some(&last_byte) = output.last() {
                 let pad_len = last_byte as usize;
                 if pad_len > 0 && pad_len <= AES_BLOCK_LENGTH_BYTES && output.len() >= pad_len {
@@ -803,7 +816,7 @@ impl Encryption for AESContext {
                         .iter()
                         .all(|&b| b == last_byte);
                     if padding_valid {
-                        output.truncate(output.len() - pad_len);
+                        output.resize(output.len() - pad_len, 0);
                     }
                 }
             }
@@ -818,6 +831,6 @@ impl Encryption for AESContext {
     }
 
     fn get_key(&self) -> &[u8] {
-         &self.key
+        &self.key
     }
 }
