@@ -20,6 +20,16 @@ pub mod arg_handling {
         Size256,
     }
 
+    impl Into<usize> for KeySize {
+        fn into(self) -> usize {
+            match self {
+                KeySize::Size128 => 128,
+                KeySize::Size192 => 192,
+                KeySize::Size256 => 256,
+            }
+        }
+    }
+
     pub struct KryptosConfig {
         pub enc_type: EncryptionInfo,
         pub key_size: KeySize,
@@ -112,7 +122,10 @@ pub mod arg_handling {
 
         if (optional_key.is_some() && optional_key.unwrap().len() * 8 != size_usize) {
             eprintln!("Invalid optional key!");
-            eprintln!("You specified the size as {size_usize} but the given length was {}!", actual_size * 8);
+            eprintln!(
+                "You specified the size as {size_usize} but the given length was {}!",
+                actual_size * 8
+            );
             exit(ERROR);
         }
 

@@ -1,4 +1,4 @@
-use crate::arg_handling::arg_handling::arg_handling::parse_arguments;
+use crate::arg_handling::arg_handling::arg_handling::{parse_arguments, KeySize};
 use crate::cryptography::rc4::KEY_SIZE_BYTES;
 use crate::telnet::{spawn_server_thread, ConnectionPool};
 use rand::distr::Alphanumeric;
@@ -45,7 +45,7 @@ fn main() {
     let mut port = 0;
     let args: Vec<String> = env::args().collect();
     let config = parse_arguments(args);
-    let session_token: String;
+    let mut session_token: String;
 
     /*
        Key will be validated inside parse_arguments function
@@ -53,6 +53,8 @@ fn main() {
     match config.optional_key {
         None => {
             session_token = generate_session_token();
+            let key_size: usize = <KeySize as Into<usize>>::into(config.key_size) / 8;
+            session_token.truncate(key_size);
         }
         Some(ref key) => {
             session_token = key.clone();

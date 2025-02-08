@@ -354,10 +354,13 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
         let length = conn.read_from_connection_blocking();
 
         for byte in conn.read_buffer[..length].iter() {
+            /*
             if !(*byte).is_ascii() {
                 eprintln!("Connection {} on {} is sending invalid ascii, this likely means that they have the wrong session key! Closing connection.",conn.connection_id,conn.socket_addr);
                 return false;
             }
+
+             */
         }
 
         if length == 0 {
