@@ -760,9 +760,11 @@ impl Encryption for AESContext {
         let ctr: bool = self.mode == AesMode::CTR;
         if (!ctr) {
             let mut len = input.len();
-            let padding_len = AES_BLOCK_LENGTH_BYTES - (len % AES_BLOCK_LENGTH_BYTES);
-            for _ in 0..padding_len {
-                input.push(padding_len as u8);
+            let padding_len = (AES_BLOCK_LENGTH_BYTES - (len % AES_BLOCK_LENGTH_BYTES));
+            if (padding_len < AES_BLOCK_LENGTH_BYTES) {
+                for _ in 0..padding_len {
+                    input.push(padding_len as u8);
+                }
             }
         }
         match self.mode {
@@ -799,18 +801,14 @@ impl Encryption for AESContext {
         }
 
         if (!ctr) {
-            let len = output.len();
-
+            let mut len = output.len();
             for i in 0..len {
-                if (output[i] == 0) {
-                    output.resize(i, 0);
+                if(output[i] == 0){
+                    len = i;
+                   output.resize(len,0);
                     break;
                 }
             }
-            if (len % AES_BLOCK_LENGTH_BYTES) != 0 {
-                output.resize(len - (len % AES_BLOCK_LENGTH_BYTES), 0);
-            }
-
             if let Some(&last_byte) = output.last() {
                 let pad_len = last_byte as usize;
                 if pad_len > 0 && pad_len <= AES_BLOCK_LENGTH_BYTES && output.len() >= pad_len {
