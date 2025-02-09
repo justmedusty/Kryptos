@@ -687,11 +687,10 @@ mod cryptography_tests {
         thread.join().unwrap();
         let mut server = loopback_conn.accept().unwrap().0;
         let bytes = server.read(&mut buffer).unwrap();
+        println!("BYTES {bytes}");
         buffer.resize(bytes, 0);
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
-
-
         let mut message = "Hello this is a test".as_bytes().to_vec();
         assert_eq!(message,decryption_buffer);
     }

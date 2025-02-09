@@ -757,20 +757,32 @@ impl Encryption for AESContext {
     }
 
     fn encrypt(&mut self, input: &mut Vec<u8>, output: &mut Vec<u8>) {
-            let mut len = input.len();
-            let padding_len = (AES_BLOCK_LENGTH_BYTES - (len % AES_BLOCK_LENGTH_BYTES));
-            if (padding_len < AES_BLOCK_LENGTH_BYTES) {
-                for _ in 0..padding_len {
-                    input.push(padding_len as u8);
-                }
+        let mut len = input.len();
+        let padding_len = (AES_BLOCK_LENGTH_BYTES - (len % AES_BLOCK_LENGTH_BYTES));
+        if (padding_len < AES_BLOCK_LENGTH_BYTES) {
+            for _ in 0..padding_len {
+                input.push(padding_len as u8);
             }
+        }
+
+        if (output.len() < input.len()) {
+            output.resize(input.len(), 0);
+        }
         match self.mode {
             AesMode::CBC => {
                 self.cbc_encrypt(input, output);
             }
             AesMode::ECB => {
-                self.ecb_encrypt(input, output);
+                for i in 0..input.len() / AES_BLOCK_LENGTH_BYTES {
+                    self.ecb_encrypt(
+                        &input[i * AES_BLOCK_LENGTH_BYTES
+                            ..(i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES],
+                        &mut output[i * AES_BLOCK_LENGTH_BYTES
+                            ..(i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES],
+                    );
+                }
             }
+
             AesMode::CTR => {
                 self.ctr_encrypt(input, output);
             }
@@ -781,41 +793,49 @@ impl Encryption for AESContext {
         let input_size = input.len();
         let output_size = output.len();
 
-        if input_size > output_size {
-            output.resize(input_size - AES_BLOCK_LENGTH_BYTES, 0); // Shave off the IV from the input length
+        if (input_size > output_size) {
+            output.resize(input_size - AES_BLOCK_LENGTH_BYTES, 0); // Shave off the IV
         }
+
         match self.mode {
             AesMode::CBC => {
                 self.cbc_decrypt(input, output);
             }
             AesMode::ECB => {
-                self.ecb_decrypt(input, output);
+                for i in 0..input.len() / AES_BLOCK_LENGTH_BYTES {
+                    self.ecb_decrypt(
+                        &mut input[i * AES_BLOCK_LENGTH_BYTES
+                            ..(i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES],
+                        &mut output[i * AES_BLOCK_LENGTH_BYTES
+                            ..(i * AES_BLOCK_LENGTH_BYTES) + AES_BLOCK_LENGTH_BYTES],
+                    );
+                }
             }
             AesMode::CTR => {
                 self.ctr_decrypt(input, output);
             }
         }
 
-            let mut len = output.len();
-            for i in 0..len {
-                if(output[i] == 0){
-                    len = i;
-                   output.resize(len,0);
-                    break;
+        let mut len = output.len();
+        for i in 0..len {
+            if (output[i] == 0) {
+                len = i;
+                println!("LEN {len}");
+                output.resize(len, 0);
+                break;
+            }
+        }
+        if let Some(&last_byte) = output.last() {
+            let pad_len = last_byte as usize;
+            if pad_len > 0 && pad_len <= AES_BLOCK_LENGTH_BYTES && output.len() >= pad_len {
+                let padding_valid = output[output.len() - pad_len..]
+                    .iter()
+                    .all(|&b| b == last_byte);
+                if padding_valid {
+                    output.resize(output.len() - pad_len, 0);
                 }
             }
-            if let Some(&last_byte) = output.last() {
-                let pad_len = last_byte as usize;
-                if pad_len > 0 && pad_len <= AES_BLOCK_LENGTH_BYTES && output.len() >= pad_len {
-                    let padding_valid = output[output.len() - pad_len..]
-                        .iter()
-                        .all(|&b| b == last_byte);
-                    if padding_valid {
-                        output.resize(output.len() - pad_len, 0);
-                    }
-                }
-            }
-
+        }
     }
 
     fn set_key(&mut self, key: &[u8]) {
