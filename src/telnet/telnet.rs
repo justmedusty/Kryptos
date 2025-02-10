@@ -39,7 +39,7 @@ impl TelnetServerConnection {
             socket_addr: socket,
             connection_id,
             stream,
-            read_buffer: vec![0; 4096],
+            read_buffer: vec![0; 1024],
             name: "".to_string(),
             encryption_context: EncryptionContext::new(Rc4State::new(None)),
             log: false,
@@ -98,7 +98,7 @@ impl ServerFunctions for TelnetServerConnection {
         if let Err(_) = self.stream.set_nonblocking(true) {
             return 0;
         }
-        let mut encrypted_buffer = vec![0; 4096];
+        let mut encrypted_buffer = vec![0; 1024];
 
         let ret = match self.stream.read(&mut encrypted_buffer) {
             Ok(0) => {
@@ -118,7 +118,7 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
-
+        encrypted_buffer.resize(ret,0);
         self.encryption_context
             .context
             .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
@@ -208,7 +208,7 @@ impl ServerFunctions for TelnetServerConnection {
             return 0;
         }
 
-        let mut encrypted_buffer = vec![0; 4096];
+        let mut encrypted_buffer = vec![0; 1024];
         let ret = match self.stream.read(&mut encrypted_buffer) {
             Ok(0) => 0,
             Ok(x) => x,
@@ -221,7 +221,7 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
-
+        encrypted_buffer.resize(ret,0);
         self.encryption_context
             .context
             .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
