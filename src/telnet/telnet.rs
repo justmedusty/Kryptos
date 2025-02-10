@@ -118,7 +118,8 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
-        encrypted_buffer.resize(ret,0);
+        self.read_buffer.resize(ret, 0);
+        encrypted_buffer.resize(ret, 0);
         self.encryption_context
             .context
             .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
@@ -221,11 +222,9 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
-        encrypted_buffer.resize(ret,0);
         self.encryption_context
             .context
             .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
-
         write_to_log!(self);
         ret
     }
@@ -360,29 +359,26 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
         greeted = true;
 
         let length = conn.read_from_connection_blocking();
-
-        for byte in conn.read_buffer[..length].iter() {
-            /*
+        conn.read_buffer.resize(length, 0);
+        /*
+        for byte in conn.read_buffer.iter() {
             if !(*byte).is_ascii() {
                 eprintln!("Connection {} on {} is sending invalid ascii, this likely means that they have the wrong session key! Closing connection.",conn.connection_id,conn.socket_addr);
                 return false;
             }
-
-             */
         }
-
+*/
         if length == 0 {
             return false;
         }
 
-        let name = String::from_utf8_lossy(&*conn.read_buffer.to_vec())
+        let name = String::from_utf8_lossy(&*conn.read_buffer[0..length].to_vec())
             .trim()
             .to_string();
         conn.flush_read_buffer();
 
         if length > 4 && length < 25 {
             let mut name = name.clone();
-            name.truncate(length);
             println!("New connection: {}", name);
 
             conn.write_from_passed_buffer(&mut SUCCESS_STRING.as_bytes().to_vec());
