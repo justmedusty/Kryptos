@@ -222,6 +222,9 @@ impl ServerFunctions for TelnetServerConnection {
                 return 0;
             }
         };
+        println!("READ {ret} BYTES");
+        encrypted_buffer.resize(ret, 0);
+        self.read_buffer.resize(ret, 0);
         self.encryption_context
             .context
             .decrypt(&mut encrypted_buffer, &mut self.read_buffer);
@@ -359,24 +362,23 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
         greeted = true;
 
         let length = conn.read_from_connection_blocking();
-        conn.read_buffer.resize(length, 0);
-        /*
+
         for byte in conn.read_buffer.iter() {
             if !(*byte).is_ascii() {
                 eprintln!("Connection {} on {} is sending invalid ascii, this likely means that they have the wrong session key! Closing connection.",conn.connection_id,conn.socket_addr);
                 return false;
             }
         }
-*/
+
         if length == 0 {
             return false;
         }
 
-        let name = String::from_utf8_lossy(&*conn.read_buffer[0..length].to_vec())
+        let name = String::from_utf8_lossy(&*conn.read_buffer)
             .trim()
             .to_string();
-        conn.flush_read_buffer();
 
+        let length = name.len();
         if length > 4 && length < 25 {
             let mut name = name.clone();
             println!("New connection: {}", name);
