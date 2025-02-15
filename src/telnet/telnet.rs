@@ -86,7 +86,7 @@ macro_rules! write_to_log {
             let file = $self.log_file.as_ref().unwrap();
             let reference = Arc::new(RwLock::new(file));
             let mut file = reference.write().unwrap();
-            file.write(&$self.read_buffer)
+            let written = file.write(&$self.read_buffer)
                 .expect("Could not write to log file!");
         }
     };
@@ -374,7 +374,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
             return false;
         }
 
-        let name = String::from_utf8_lossy(&*conn.read_buffer)
+        let name = String::from_utf8_lossy(&conn.read_buffer)
             .trim()
             .to_string();
 
@@ -421,7 +421,7 @@ pub fn handle_new_connection(connection: Connection, pool: ConnectionPool) -> bo
    Main server loop, socket is nonblocking so that it will not stay blocked while inside a locked context (this would break the broadcast function) , broadcasts on leave so others are alerted
 */
 pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move || {
         let (mut read_buffer, mut connection_id, mut val);
         let result = handle_new_connection(connection.clone(), pool.clone());
 
@@ -482,7 +482,6 @@ pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
         let message = format!("{} has left\n", name);
         let mut message_vec = message.into_bytes();
         broadcast_message(&mut message_vec, conn_id, &pool);
-        return;
     });
 }
 /*
@@ -490,15 +489,15 @@ This function is just for testing purposes
 */
 #[allow(dead_code)]
 pub fn spawn_connect_thread() {
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move || {
         println!("Starting client thread");
         let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{}", PORT)).unwrap();
         let mut buf = Box::new([0; 1024]);
-        tcp_stream
+        let write = tcp_stream
             .write(&Vec::from(String::from("TESTBOT\n").as_bytes()))
             .expect("Could not write to tcp output stream");
         loop {
-            tcp_stream.read(buf.deref_mut()).unwrap();
+            let read = tcp_stream.read(buf.deref_mut()).unwrap();
             if buf[0] != b'\0' {
                 println!(
                     "Received a message from the server : {}",
