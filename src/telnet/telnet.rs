@@ -86,7 +86,8 @@ macro_rules! write_to_log {
             let file = $self.log_file.as_ref().unwrap();
             let reference = Arc::new(RwLock::new(file));
             let mut file = reference.write().unwrap();
-            let written = file.write(&$self.read_buffer)
+            let written = file
+                .write(&$self.read_buffer)
                 .expect("Could not write to log file!");
         }
     };

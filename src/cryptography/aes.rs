@@ -760,7 +760,7 @@ impl Encryption for AESContext {
         let mut len = input.len();
         let output_len = output.len();
         if (self.mode != AesMode::ECB) {
-           output.resize(len + AES_BLOCK_LENGTH_BYTES, 0);
+            output.resize(len + AES_BLOCK_LENGTH_BYTES, 0);
         }
 
         let padding_len = (AES_BLOCK_LENGTH_BYTES - (len % AES_BLOCK_LENGTH_BYTES));

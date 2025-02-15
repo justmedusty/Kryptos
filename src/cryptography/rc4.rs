@@ -32,7 +32,7 @@ impl Rc4State {
             key: Rc4Key::new([0; KEY_SIZE_BYTES]), // Initialize with a default key
         };
 
-        if(key.is_some()) {
+        if (key.is_some()) {
             let key = key.unwrap();
             new.set_key(key);
         }
@@ -105,7 +105,7 @@ impl Encryption for Rc4State {
         }
     }
 
-    fn decrypt(&mut self, input: &mut Vec<u8>, output:  &mut Vec<u8>) {
+    fn decrypt(&mut self, input: &mut Vec<u8>, output: &mut Vec<u8>) {
         self.encrypt(input, output);
     }
 

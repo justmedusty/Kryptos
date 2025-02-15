@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod cryptography_tests {
-    use std::io::{Read, Write};
     use crate::cryptography::aes::*;
     use crate::cryptography::cryptography::{Encryption, EncryptionContext};
     use crate::cryptography::rc4::Rc4State;
+    use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::thread::spawn;
 
@@ -441,7 +441,6 @@ mod cryptography_tests {
         assert_eq!(input3, original_input);
     }
 
-
     #[test]
     fn test_nonce_differences_cbc_128() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
@@ -530,15 +529,14 @@ mod cryptography_tests {
         let mut message = "Hello this is a test".as_bytes().to_vec();
         let mut buff = vec![0u8; message.len()];
 
-        encryption_context.context.encrypt(&mut message,&mut buff);
+        encryption_context.context.encrypt(&mut message, &mut buff);
         for byte in &buff {
             print!("{}", *byte as char);
         }
         println!();
-        println!("Done buffer is {} bytes long",buff.len());
+        println!("Done buffer is {} bytes long", buff.len());
         consumer.write(&buff).unwrap();
     }
-
 
     fn test_padding_removal_aes_cbc_128() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S128, None);
@@ -559,8 +557,7 @@ mod cryptography_tests {
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
-
+        assert_eq!(message, decryption_buffer);
     }
     fn test_padding_removal_aes_cbc_192() {
         let mut aes = AESContext::new(AesMode::CBC, AesSize::S192, None);
@@ -581,7 +578,7 @@ mod cryptography_tests {
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
 
     fn test_padding_removal_aes_cbc_256() {
@@ -602,9 +599,8 @@ mod cryptography_tests {
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
-
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
     fn test_padding_removal_aes_ctr_128() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S128, None);
@@ -625,7 +621,7 @@ mod cryptography_tests {
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
     fn test_padding_removal_aes_ctr_192() {
         let mut aes = AESContext::new(AesMode::CTR, AesSize::S192, None);
@@ -645,9 +641,8 @@ mod cryptography_tests {
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
-
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
 
     fn test_padding_removal_aes_ctr_256() {
@@ -668,9 +663,8 @@ mod cryptography_tests {
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
-
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
 
     fn test_padding_removal_aes_ecb_128() {
@@ -692,7 +686,7 @@ mod cryptography_tests {
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
     fn test_padding_removal_aes_ecb_192() {
         let mut aes = AESContext::new(AesMode::ECB, AesSize::S192, None);
@@ -712,9 +706,8 @@ mod cryptography_tests {
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
-
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
 
     fn test_padding_removal_aes_ecb_256() {
@@ -735,9 +728,8 @@ mod cryptography_tests {
         let mut decryption_buffer = vec![0; bytes];
         aes.decrypt(&mut buffer, &mut decryption_buffer);
 
-
         let mut message = "Hello this is a test".as_bytes().to_vec();
-        assert_eq!(message,decryption_buffer);
+        assert_eq!(message, decryption_buffer);
     }
 
     #[test]
@@ -751,6 +743,5 @@ mod cryptography_tests {
         test_padding_removal_aes_ecb_128();
         test_padding_removal_aes_ecb_192();
         test_padding_removal_aes_ecb_256();
-
     }
 }
