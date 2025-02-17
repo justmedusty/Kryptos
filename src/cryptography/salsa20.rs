@@ -10,6 +10,8 @@ pub mod salsa20 {
 
     const SALSA20_STATE_SIZE_BYTES: usize = 64;
 
+    const SIGMA: &str = "expand 32-byte k";
+
     type Salsa20Nonce = [u8; 8];
     type Salsa20Counter = [u8; 8];
 
@@ -43,11 +45,15 @@ pub mod salsa20 {
            Core Salsa20 Algorithm operates on each column of the 4x4 matrix
         */
         #[inline]
-        fn quarter_round(a: &mut u32, b: &mut u32, c: &mut u32, d: &mut u32) {
-            *b ^= Salsa2020Context::rotate_left(*a + *d, 7);
-            *c ^= Salsa2020Context::rotate_left(*b + *a, 9);
-            *d ^= Salsa2020Context::rotate_left(*c + *b, 13);
-            *a ^= Salsa2020Context::rotate_left(*d + *c, 18);
+        fn quarter_round(state: &mut Salsa20State ,a: usize, b:  usize, c:usize, d: usize) {
+            state[b] ^= Self::rotate_left( state[a] +  state[d], 7);
+            state[c] ^= Self::rotate_left( state[b] +  state[a], 9);
+            state[d] ^= Self::rotate_left( state[c] +  state[b], 13);
+            state[a] ^= Self::rotate_left( state[d] +  state[c], 18);
+        }
+
+        fn salsa20_rounds(state: &mut Salsa20State){
+            Self::quarter_round(state ,0,4,8,12);
         }
     }
 
