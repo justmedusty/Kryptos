@@ -26,13 +26,28 @@ pub mod salsa20 {
         pub fn new() -> Salsa2020Context {
             todo!()
         }
-
+        #[inline]
         pub fn generate_nonce(&mut self) {
             rand::rng().fill_bytes(&mut self.nonce);
         }
-
+        #[inline]
         pub fn generate_key(&mut self) {
             rand::rng().fill_bytes(&mut self.key);
+        }
+        #[inline]
+        fn rotate_left(a: u32, b: u32) -> u32 {
+            (a << b) | (a >> (32 - b))
+        }
+
+        /*
+           Core Salsa20 Algorithm operates on each column of the 4x4 matrix
+        */
+        #[inline]
+        fn quarter_round(a: &mut u32, b: &mut u32, c: &mut u32, d: &mut u32) {
+            *b ^= Salsa2020Context::rotate_left(*a + *d, 7);
+            *c ^= Salsa2020Context::rotate_left(*b + *a, 9);
+            *d ^= Salsa2020Context::rotate_left(*c + *b, 13);
+            *a ^= Salsa2020Context::rotate_left(*d + *c, 18);
         }
     }
 
