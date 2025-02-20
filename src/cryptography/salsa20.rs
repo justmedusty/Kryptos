@@ -71,8 +71,37 @@ pub mod salsa20 {
                 + (byte[2] << 16u32) as u32
                 + (byte[3] << 24u32) as u32)
         }
-        
-        fn salsa20_reverse_little_endian_word(byte: &mut [u8; 4], word : u32){
+
+        fn salsa20_reverse_little_endian_word(byte: &mut [u8; 4], word: u32) {
+            byte[0] = word as u8;
+            byte[1] = (word >> 8) as u8;
+            byte[2] = (word >> 16) as u8;
+            byte[3] = (word >> 24) as u8;
+        }
+
+        fn salsa20_hash(sequence: &mut [u8; 64]) {
+            let mut x: Salsa20State = [0u32; 16];
+            let mut z: Salsa20State = [0u32; 16];
+
+            for i in 0..16 {
+                let result = Self::salsa20_little_endian_word(
+                    <&[u8; 4]>::try_from(&sequence[i * 4..(i * 4) + 4]).unwrap(),
+                ); // this may be dicey we will see
+                x[i] = result;
+                z[i] = result;
+            }
+
+            for _ in 0..10 {
+                Self::salsa20_double_rounds(&mut z);
+            }
+
+            for i in 0..16 {
+                z[i] += x[i];
+                Self::salsa20_reverse_little_endian_word(
+                    <&mut [u8; 4]>::try_from(&mut sequence[i * 4..(i * 4) + 4]).unwrap(),
+                    z[i],
+                );
+            }
         }
     }
 
