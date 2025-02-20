@@ -10,7 +10,7 @@ pub mod salsa20 {
 
     const SALSA20_STATE_SIZE_BYTES: usize = 64;
 
-    const SIGMA: &str = "expand 32-byte k";
+    const SIGMA: &[u8; 16] = b"expand 32-byte k";
 
     type Salsa20Nonce = [u8; 8];
     type Salsa20Counter = [u8; 8];
@@ -45,15 +45,34 @@ pub mod salsa20 {
            Core Salsa20 Algorithm operates on each column of the 4x4 matrix
         */
         #[inline]
-        fn quarter_round(state: &mut Salsa20State ,a: usize, b:  usize, c:usize, d: usize) {
-            state[b] ^= Self::rotate_left( state[a] +  state[d], 7);
-            state[c] ^= Self::rotate_left( state[b] +  state[a], 9);
-            state[d] ^= Self::rotate_left( state[c] +  state[b], 13);
-            state[a] ^= Self::rotate_left( state[d] +  state[c], 18);
+        fn salsa20_quarter_round(state: &mut Salsa20State, a: usize, b: usize, c: usize, d: usize) {
+            state[b] ^= Self::rotate_left(state[a] + state[d], 7);
+            state[c] ^= Self::rotate_left(state[b] + state[a], 9);
+            state[d] ^= Self::rotate_left(state[c] + state[b], 13);
+            state[a] ^= Self::rotate_left(state[d] + state[c], 18);
         }
 
-        fn salsa20_rounds(state: &mut Salsa20State){
-            Self::quarter_round(state ,0,4,8,12);
+        fn salsa20_double_rounds(state: &mut Salsa20State) {
+            //column round
+            Self::salsa20_quarter_round(state, 0, 4, 8, 12);
+            Self::salsa20_quarter_round(state, 5, 9, 13, 1);
+            Self::salsa20_quarter_round(state, 10, 14, 2, 6);
+            Self::salsa20_quarter_round(state, 15, 3, 7, 11);
+            //row round
+            Self::salsa20_quarter_round(state, 0, 1, 2, 3);
+            Self::salsa20_quarter_round(state, 5, 6, 7, 4);
+            Self::salsa20_quarter_round(state, 10, 14, 2, 6);
+            Self::salsa20_quarter_round(state, 15, 12, 13, 14);
+        }
+
+        fn salsa20_little_endian_word(byte: &[u8; 4]) -> u32 {
+            ((byte[0] as u32)
+                + (byte[1] << 8u32) as u32
+                + (byte[2] << 16u32) as u32
+                + (byte[3] << 24u32) as u32)
+        }
+        
+        fn salsa20_reverse_little_endian_word(byte: &mut [u8; 4], word : u32){
         }
     }
 
