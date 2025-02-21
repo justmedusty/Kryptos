@@ -439,22 +439,22 @@ pub fn spawn_server_thread(connection: Connection, pool: ConnectionPool) {
             connection_id = conn.connection_id;
             val = conn.read_from_connection();
 
-            if val > 0 && val != VALID_CONNECTION as usize {
-                read_buffer = conn.read_buffer.clone();
-                read_buffer.resize(val, 0);
-                let mut prefix = conn.name.clone().into_bytes();
-                prefix.push(b':');
-                prefix.push(b' ');
-                prefix.extend_from_slice(&read_buffer);
-                prefix.push(b'\n');
-                read_buffer = prefix;
-            } else if val == VALID_CONNECTION as usize {
-                continue;
-            } else if val == 0 {
-                break;
-            } else {
-                continue;
+            match val {
+                v if v > 0 && v != VALID_CONNECTION as usize => {
+                    read_buffer = conn.read_buffer.clone();
+                    read_buffer.resize(v, 0);
+                    let mut prefix = conn.name.clone().into_bytes();
+                    prefix.push(b':');
+                    prefix.push(b' ');
+                    prefix.extend_from_slice(&read_buffer);
+                    prefix.push(b'\n');
+                    read_buffer = prefix;
+                }
+                v if v == VALID_CONNECTION as usize => continue,
+                0 => break,
+                _ => continue,
             }
+            
             drop(conn);
 
             broadcast_message(&mut read_buffer, connection_id, &pool);
