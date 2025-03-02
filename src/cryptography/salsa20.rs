@@ -66,12 +66,11 @@ pub mod salsa20 {
         }
 
         fn salsa20_little_endian_word(byte: &[u8; 4]) -> u32 {
-            ((byte[0] as u32)
-                + (byte[1] << 8u32) as u32
-                + (byte[2] << 16u32) as u32
-                + (byte[3] << 24u32) as u32)
+            (byte[0] as u32)
+                | ((byte[1] as u32) << 8)
+                | ((byte[2] as u32) << 16)
+                | ((byte[3] as u32) << 24)
         }
-
         fn salsa20_reverse_little_endian_word(byte: &mut [u8; 4], word: u32) {
             byte[0] = word as u8;
             byte[1] = (word >> 8) as u8;
