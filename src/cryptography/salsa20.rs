@@ -12,6 +12,20 @@ pub mod salsa20 {
 
     const SIGMA: &[u8; 16] = b"expand 32-byte k";
 
+    const TAU: [[u8; 4]; 4] = [
+        [b'e', b'x', b'p', b'a'],
+        [b'n', b'd', b' ', b'1'],
+        [b'6', b'-', b'b', b'y'],
+        [b't', b'e', b' ', b'k'],
+    ];
+
+    const O: [[u8; 4]; 4] = [
+        [b'e', b'x', b'p', b'a'],
+        [b'n', b'd', b' ', b'3'],
+        [b'2', b'-', b'b', b'y'],
+        [b't', b'e', b' ', b'k'],
+    ];
+
     type Salsa20Nonce = [u8; 8];
     type Salsa20Counter = [u8; 8];
 
@@ -101,6 +115,34 @@ pub mod salsa20 {
                     z[i],
                 );
             }
+        }
+
+        fn salsa20_expand16(key: &mut [u8], nonce: &mut [u8; 16], keystream: &mut [u8; 64]) {
+            for (i, row) in TAU.iter().enumerate() {
+                keystream[i * 20..i * 20 + 4].copy_from_slice(row);
+            }
+
+            for i in 0..16 {
+                keystream[4 + i] = key[i];
+                keystream[44 + i] = key[i];
+                keystream[24 + i] = nonce[i];
+            }
+
+            Self::salsa20_hash(keystream);
+        }
+
+        fn salsa20_expand32(key: &mut [u8], nonce: &mut [u8; 16], keystream: &mut [u8; 64]) {
+            for (i, row) in O.iter().enumerate() {
+                keystream[i * 20..i * 20 + 4].copy_from_slice(row);
+            }
+
+            for i in 0..16 {
+                keystream[4 + i] = key[i];
+                keystream[44 + i] = key[i + 16];
+                keystream[24 + i] = nonce[i];
+            }
+
+            Self::salsa20_hash(keystream);
         }
     }
 
