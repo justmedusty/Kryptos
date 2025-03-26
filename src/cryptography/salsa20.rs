@@ -144,6 +144,44 @@ pub mod salsa20 {
 
             Self::salsa20_hash(keystream);
         }
+
+        fn salsa20_crypt(
+            key: &mut [u8],
+            nonce: &mut [u8; 16],
+            keystream: &mut [u8; 64],
+            stream_index: u32,
+            buffer: &mut [u8],
+        ) {
+            let mut keystream = [0u8; 64];
+
+            let mut n = [0u8; 16];
+
+            //we'll just support full (256 bit) key size for the time being
+
+            for i in 0..8 {
+                n[i] = nonce[i];
+            }
+
+            if stream_index % 64 != 0 {
+                Self::salsa20_reverse_little_endian_word(
+                    <&mut [u8; 4]>::try_from(&mut n[8..]).unwrap(),
+                    stream_index / 64,
+                );
+                Self::salsa20_expand32(key, &mut n, &mut keystream);
+            }
+
+            for i in 0..buffer.len() {
+                if (stream_index + i as u32) % 64 == 0 {
+                    Self::salsa20_reverse_little_endian_word(
+                        <&mut [u8; 4]>::try_from(&mut n[8..]).unwrap(),
+                        (stream_index + i as u32) / 64,
+                    );
+                    Self::salsa20_expand32(key, &mut n, &mut keystream);
+                }
+
+                buffer[i] ^= keystream[(stream_index as usize + i) % 64];
+            }
+        }
     }
 
     impl Encryption for Salsa2020Context {
