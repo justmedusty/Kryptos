@@ -186,11 +186,11 @@ pub mod salsa20 {
 
     impl Encryption for Salsa2020Context {
         fn initialize_context(&mut self) {
-            todo!()
+            self.generate_key();
         }
 
         fn encrypt(&mut self, input: &mut Vec<u8>, output: &mut Vec<u8>) {
-            todo!()
+            self.generate_nonce();
         }
 
         fn decrypt(&mut self, input: &mut Vec<u8>, output: &mut Vec<u8>) {
